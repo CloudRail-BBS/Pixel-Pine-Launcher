@@ -1,0 +1,21 @@
+[package]
+name = "ppl-core"
+description = "Pixel-Pine-Launcher 内核：实例、资源库、Loadout 与网络"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+ppl-package = { path = "../ppl-package" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[target."cfg(windows)".dependencies]
+junction = "2.1.0"
+winreg = "0.56.0"
+
+[dev-dependencies]
+zip = "9.4.2"

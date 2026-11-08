@@ -1,0 +1,16 @@
+[package]
+name = "ppl-package"
+description = "Rusted Warfare 资源包（.rwmod）解析、指纹与安全校验"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+encoding_rs = "0.8.44"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.11.1"
+thiserror.workspace = true
+zip = "9.4.2"

@@ -1,0 +1,155 @@
+# Pixel-Pine-Launcher
+
+《铁锈战争》的作战终端：把**游戏下载、实例、Mod 组合、资源市场、地图库、联机**收敛到一个窗口里。
+
+> 状态：M0 骨架进行中。内核与界面已跑通，尚未接入 Tauri 壳与服务端。
+
+## 这个项目解决什么
+
+铁锈战争好玩，但装起来很碎：游戏只有一个 `mods/units` 目录，所有 Mod 混在一起，
+换个玩法就得手动搬文件；Mod 之间同名单位会互相覆盖，出了问题只能靠肉眼排查。
+
+PPL 的核心不是「装游戏」，而是**组合管理**——把每一套玩法做成一个 **Loadout（作战预设）**：
+
+```
+<游戏根目录>/mods/units        ← 指向当前预设（NTFS junction / symlink）
+<存储根>/loadouts/
+   ├─ vanilla/   ├─ modern-war/   └─ sci-fi/
+```
+
+切换预设 = 重建一次链接，**零拷贝、毫秒级**，而且不污染游戏目录、不动玩家已有数据。
+
+## 当前进度
+
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| `crates/ppl-package` | ✅ | `.rwmod` 扫描、元数据解析、内容指纹、安全校验（19 项测试） |
+| `crates/ppl-core` | ✅ | 实例发现（Steam 库解析）、Mod 扫描、冲突检测、启用/禁用、预设挂载（11 项测试） |
+| `apps/desktop` | ✅ | 库 / 市场 / 地图 / 设置，深色＋浅色双主题，已接 Tauri IPC |
+| Tauri 壳 | ✅ | 11 个命令已打通，窗口可启动 |
+| 市场服务端 | ⏳ | 按方案 M3 推进，界面目前用索引数据 |
+| 联机模块 | ⏳ | M4，接口已实测（CNKD / RW-HPS） |
+
+## 目录结构
+
+```
+.
+├─ apps/desktop/        # React 19 + TypeScript + Vite
+├─ crates/
+│  ├─ ppl-package/      # 资源包解析与安全校验（客户端与服务端共用）
+│  └─ ppl-core/         # 实例、资源库、预设挂载
+├─ docs/PLAN.md         # 技术方案 v1.3
+├─ scripts/             # 构建辅助脚本
+└─ .github/workflows/   # CI
+```
+
+## 开发
+
+```bash
+# 内核
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+
+# 界面（浏览器里跑，自动使用演示数据）
+cd apps/desktop
+npm install
+npm run dev      # http://127.0.0.1:5173
+npm run build    # 类型检查 + 产物构建
+
+# 桌面应用（真实数据）
+npm run desktop:dev     # 启动窗口，读本地游戏目录
+npm run desktop:build   # 出 NSIS 安装包
+```
+
+> Windows 上 Vite 默认只监听 `[::1]`，`vite.config.ts` 已固定 `host: 127.0.0.1`，
+> 否则用 IPv4 访问会拿到 502。
+
+## 已打通的内核命令
+
+| 命令 | 作用 |
+|---|---|
+| `discover_instances` | 扫描 Steam 库与常见路径 |
+| `list_instances` / `add_instance` | 读取已登记实例 / 手动添加目录 |
+| `probe_directory` | 探测目录是否可玩、是否可写 |
+| `scan_mods` | 扫描 `mods/units`，含禁用项与冲突 |
+| `scan_maps` | 扫描 `mods/maps`，解析 TMX 尺寸与预览图 |
+| `import_package` | 校验本地 `.rwmod` 后导入指定预设（拖拽即可） |
+| `set_mod_enabled` | 启用/禁用（移入移出 `.disabled/`，可逆） |
+| `list_loadouts` / `create_loadout` | 预设列表与新建 |
+| `attach_loadout` / `link_status` | 挂载预设 / 查询当前接管状态 |
+| `launch_game` | 以游戏目录为工作目录启动 |
+
+## 导入 Mod
+
+把 `.rwmod` 或 `.zip` 直接拖进窗口即可：
+
+```
+拖入 → ppl-package 安全校验（路径穿越 / 可执行文件 / 体积 / 压缩比）
+     → 复制到 <存储根>/loadouts/<预设>/<名字>.rwmod
+     → 写入该预设的 manifest
+```
+
+校验不通过的文件不会落盘。落盘的包归预设所有，切预设时互不干扰；
+卸载只是改 manifest，禁用是移入 `.disabled/`，都能原样还原。
+
+## 市场服务端
+
+`apps/server` 是一个独立 workspace（Rust + axum + PostgreSQL），已支持容器部署。
+完整步骤（含公网反代、备份恢复、裸机 systemd、排障）见 **[docs/DEPLOY.md](docs/DEPLOY.md)**。
+
+### 端点
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/healthz` | 进程存活，容器编排用它决定是否重启 |
+| GET | `/readyz` | 依赖就绪（含数据库），负载均衡用它决定是否摘流量 |
+| GET | `/v1/packages?q=&page=&size=` | 资源分页列表 |
+| GET | `/v1/packages/{id}` | 资源详情，`id` 可以是 uuid 或 slug |
+
+健康检查分成两档是刻意的：混成一个，数据库抖一下就会把好好的进程杀掉重来。
+
+### 本地运行
+
+```bash
+cd apps/server
+DATABASE_URL=postgres://ppl:ppl@localhost:5432/ppl cargo run
+```
+
+没有数据库时服务也能起来：`/healthz` 返回 200，`/readyz` 与业务接口返回 503。
+启动时迁移在**后台**执行，失败只告警——否则数据库晚几秒就绪会导致容器反复重启。
+
+### 容器部署
+
+```bash
+cp .env.example .env          # 改掉默认口令
+docker compose up -d --build
+curl http://localhost:8080/healthz
+docker compose logs -f server
+```
+
+- 数据库数据存在 `ppl-db` 卷里；`docker compose down -v` 会连数据一起删掉。
+- 容器内端口固定 `8080`，宿主机端口由 `.env` 的 `PPL_PORT` 决定。
+- 生产环境请删掉 compose 里 `db` 的 `ports`（那是给本地连库调试用的），
+  并在前面挂一层反代做 TLS。
+
+## 界面与主题
+
+- **双主题**：深色 / 浅色 / 跟随系统，切换只改 `<html data-theme>`，组件里没有一处判断主题。
+- **毛玻璃只用在功能层**：侧栏、吸顶页头、检查器抽屉、任务坞。内容卡片保持不透明，保证可读性。
+- **吸顶玻璃页头**：内容从标题下方滚过去，模糊才有东西可折射；页头自己带内边距，不靠外层 padding 撑。
+
+## 设计原则
+
+- **内核不依赖 UI**：`ppl-core` 可以单独测试、单独编成 CLI，Tauri 只是它的一层壳。
+- **规则只写一遍**：资源包校验只有一份实现，客户端与服务端共用，避免两套标准打架。
+- **不动用户数据**：发现 `mods/units` 是真实目录时直接报错，不擅自接管。
+- **错误说人话**：面向玩家的报错是中文短句 + 具体原因，而不是 `io::Error` 原文。
+
+## 免责声明
+
+本项目为非官方第三方工具，与 Corroding Games 及《铁锈战争》开发团队无隶属关系。
+游戏与 Mod 的知识产权归各自权利人所有。完整条款见 [docs/DISCLAIMER.md](docs/DISCLAIMER.md)。
+
+## 许可
+
+MIT，详见 [LICENSE](LICENSE)。

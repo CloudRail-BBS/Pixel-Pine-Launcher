@@ -1,0 +1,196 @@
+/* 设计 token —— 单一来源，组件不写死颜色与圆角。
+   深浅两套主题只换变量，不改组件。 */
+
+:root {
+  /* 画布与层级 */
+  --bg: #0e1013;
+  --bg-elev: #16181c;
+  --bg-elev-2: #1d2025;
+  --bg-elev-3: #24282e;
+
+  /* 交互覆盖层：hover / 选中 / 按钮底色 */
+  --hover: rgba(255, 255, 255, 0.045);
+  --hover-strong: rgba(255, 255, 255, 0.08);
+  --badge-bg: rgba(255, 255, 255, 0.06);
+  --switch-off: rgba(255, 255, 255, 0.12);
+  --knob: #ffffff;
+
+  /* 描边 */
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.1);
+
+  /* 文本 */
+  --text: #e8eaed;
+  --text-2: #9aa0a6;
+  --text-3: #6b7178;
+
+  /* 语义色 */
+  --accent: #3ddc97;
+  --accent-soft: rgba(61, 220, 151, 0.14);
+  --accent-line: rgba(61, 220, 151, 0.35);
+  --accent-ink: #06231a;
+  --warn: #f2c14e;
+  --warn-soft: rgba(242, 193, 78, 0.14);
+  --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, 0.14);
+
+  /* 材质 */
+  --glass-bg: rgb(22 24 28 / 0.62);
+  --glass-blur: 28px;
+  /* 玻璃上边缘的一道高光，是材质感的关键；没有它只是「半透明」 */
+  --glass-hi: rgba(255, 255, 255, 0.1);
+  --panel-bg: rgb(22 24 28 / 0.9);
+  --dock-bg: rgb(30 33 38 / 0.92);
+  --toast-bg: rgba(38, 18, 20, 0.94);
+  --toast-text: #ffb8b8;
+  --toast-line: rgba(229, 72, 77, 0.35);
+
+  /* 环境光：给玻璃一点可折射的内容 */
+  --ambient-a: rgba(61, 220, 151, 0.03);
+  --ambient-b: rgba(47, 122, 229, 0.025);
+
+  /* 阴影 */
+  --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-2: 0 16px 48px rgba(0, 0, 0, 0.45);
+
+  /* 圆角 */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  /* 尺寸 */
+  --sidebar-w: 236px;
+  --inspector-w: 320px;
+
+  --font: "SF Pro Display", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 90ms;
+  --dur-base: 220ms;
+
+  color-scheme: dark;
+}
+
+/* 浅色：不是把深色反相，而是重新定一套层级关系。
+   白色卡片浮在浅灰画布上，靠阴影和极淡描边分层，而不是靠深色底。 */
+[data-theme="light"] {
+  --bg: #f2f3f5;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #fafbfc;
+  --bg-elev-3: #eceef1;
+
+  --hover: rgba(15, 20, 25, 0.045);
+  --hover-strong: rgba(15, 20, 25, 0.075);
+  --badge-bg: rgba(15, 20, 25, 0.06);
+  --switch-off: rgba(15, 20, 25, 0.16);
+  --knob: #ffffff;
+
+  --line: rgba(15, 20, 25, 0.08);
+  --line-strong: rgba(15, 20, 25, 0.14);
+
+  --text: #1a1d21;
+  --text-2: #5b6169;
+  --text-3: #8a9099;
+
+  /* 浅底上 #3ddc97 对比度不够，换成更深的同色系 */
+  --accent: #0e9f6e;
+  --accent-soft: rgba(14, 159, 110, 0.1);
+  --accent-line: rgba(14, 159, 110, 0.32);
+  --accent-ink: #ffffff;
+  --warn: #a16207;
+  --warn-soft: rgba(193, 128, 10, 0.12);
+  --danger: #d13438;
+  --danger-soft: rgba(209, 52, 56, 0.1);
+
+  --glass-bg: rgb(255 255 255 / 0.72);
+  --glass-hi: rgba(255, 255, 255, 0.9);
+  --panel-bg: rgb(255 255 255 / 0.94);
+  --dock-bg: rgb(255 255 255 / 0.92);
+  --toast-bg: rgba(253, 236, 236, 0.96);
+  --toast-text: #9b1c20;
+  --toast-line: rgba(209, 52, 56, 0.25);
+
+  --ambient-a: rgba(14, 159, 110, 0.055);
+  --ambient-b: rgba(80, 140, 240, 0.045);
+
+  --shadow-1: 0 6px 18px rgba(15, 20, 25, 0.08);
+  --shadow-2: 0 16px 40px rgba(15, 20, 25, 0.12);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* 主题切换时不要闪白 */
+  transition: background-color 200ms linear, color 200ms linear;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* 细滚动条，避免默认滚动条破坏界面 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,10 @@
+# 统一换行符，避免 Windows 提交把 CI 的 fmt 检查打红
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.zip binary
+*.rwmod binary

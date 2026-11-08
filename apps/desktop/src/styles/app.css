@@ -1,0 +1,942 @@
+/* 应用外壳与组件样式。
+   原则：内容层保持稳定不透明，只有导航层用玻璃材质（方案 §6.1）。 */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* 键盘焦点必须看得见，且不被圆角裁掉 */
+:where(button, [role="button"], input, [role="switch"]):focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+/* 环境光：给玻璃材质一点可折射的东西，否则 blur() 看不出效果 */
+.ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient::before,
+.ambient::after {
+  content: "";
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+
+.ambient::before {
+  top: -240px;
+  left: -60px;
+  background: var(--ambient-a);
+}
+
+.ambient::after {
+  bottom: -300px;
+  right: -120px;
+  background: var(--ambient-b);
+}
+
+/* ---------- 侧边栏 ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 18px 14px 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-right: 1px solid var(--line);
+  /* 上边缘高光：玻璃与「半透明色块」的分界线 */
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  position: relative;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 2px;
+  -webkit-app-region: drag;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.brand-name {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-label {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 8px 12px 6px;
+  letter-spacing: 0.06em;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--text-2);
+  font-size: 14px;
+  text-align: left;
+  width: 100%;
+  position: relative;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color 160ms linear,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.nav-item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nav-item:active {
+  transform: scale(0.98);
+}
+
+.nav-item.active {
+  background: var(--hover-strong);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(61, 220, 151, 0.55);
+}
+
+.nav-icon {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  opacity: 0.9;
+}
+
+.nav-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.instance-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
+  background: var(--hover);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  box-shadow: 0 0 8px rgba(61, 220, 151, 0.7);
+}
+
+/* ---------- 主区域 ---------- */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+.main-scroll {
+  overflow-y: auto;
+  /* 顶部内边距交给吸顶条自己，否则滚动时会出现一条空白缝 */
+  padding: 0 30px 90px;
+  height: 100%;
+}
+
+/* 页面头做成吸顶玻璃条：内容从它下面滚过去，模糊才有东西可折射。
+   这也是整个界面里唯一需要「内容在背后」的玻璃区域。 */
+.page-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 -30px 20px;
+  padding: 18px 30px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+}
+
+/* 标题区必须能被压缩，否则窄窗口下说明文字会挤成一列单字 */
+.page-head > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+/* 把搜索并进吸顶玻璃条，滚动时它一直可点 */
+.page-head .page-search {
+  flex: 1 0 100%;
+  margin-top: 6px;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.page-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.head-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---------- 按钮 ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+  background: var(--hover);
+  transition:
+    background 160ms var(--ease-out),
+    color 160ms linear,
+    transform var(--dur-fast) var(--ease-out),
+    border-color 160ms linear;
+}
+
+.btn:hover {
+  background: var(--hover-strong);
+  color: var(--text);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #06231a;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background: #4ae8a6;
+  color: #06231a;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+
+.btn-danger:hover {
+  color: var(--danger);
+  border-color: rgba(229, 72, 77, 0.4);
+  background: var(--danger-soft);
+}
+
+/* ---------- 卡片与区块 ---------- */
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 18px;
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.instance-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.instance-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--bg-elev-3);
+  color: var(--accent);
+}
+
+.instance-icon .nav-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.instance-meta h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.instance-meta p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+/* ---------- 预设选择 ---------- */
+
+.loadout-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--hover);
+  border: 1px solid transparent;
+  transition:
+    background 180ms var(--ease-out),
+    color 180ms linear,
+    border-color 180ms linear,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.chip:hover {
+  color: var(--text);
+  background: var(--hover-strong);
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+/* ---------- Mod 列表 ---------- */
+
+.mod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.mod-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background 160ms var(--ease-out);
+}
+
+.mod-row + .mod-row {
+  border-top: 1px solid var(--line);
+}
+
+.mod-row:hover {
+  background: var(--hover);
+}
+
+.mod-row.selected {
+  background: rgba(61, 220, 151, 0.06);
+}
+
+.mod-row.disabled .mod-title {
+  color: var(--text-3);
+}
+
+.mod-row.disabled .mod-cover {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.mod-cover {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+  transition: filter 200ms linear, opacity 200ms linear;
+}
+
+.mod-title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mod-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--badge-bg);
+  white-space: nowrap;
+}
+
+.badge-accent {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.badge-warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+/* 开关 */
+.switch {
+  width: 40px;
+  height: 23px;
+  border-radius: 999px;
+  background: var(--switch-off);
+  position: relative;
+  flex: none;
+  transition: background 180ms var(--ease-out);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform 200ms var(--ease-out);
+}
+
+.switch.on {
+  background: var(--accent);
+}
+
+.switch.on::after {
+  transform: translateX(17px);
+}
+
+/* ---------- 市场 ---------- */
+
+.search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  transition: border-color 160ms linear, background 160ms linear;
+}
+
+.search:focus-within {
+  border-color: var(--accent-line);
+  background: var(--bg-elev-2);
+}
+
+.search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 13px;
+}
+
+.search input::placeholder {
+  color: var(--text-3);
+}
+
+.filter-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  gap: 14px;
+}
+
+.pkg-card {
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition:
+    transform 220ms var(--ease-out),
+    border-color 220ms linear,
+    background 220ms linear;
+}
+
+.pkg-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  background: var(--bg-elev-2);
+}
+
+.pkg-card:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.pkg-cover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+
+.pkg-cover-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.pkg-body {
+  padding: 12px 13px 13px;
+}
+
+.pkg-title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pkg-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-3);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pkg-foot {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pkg-stat {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  gap: 10px;
+}
+
+/* 像素封面：16×9 网格，用色块拼地形剪影，纯 CSS 生成 */
+.pixel-cover {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  width: 100%;
+  height: 100%;
+}
+
+.pixel-cover span {
+  display: block;
+}
+
+/* ---------- 检查器 ---------- */
+
+.inspector {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--inspector-w);
+  z-index: 4;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-left: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  padding: 22px 20px;
+  overflow-y: auto;
+  will-change: transform, opacity;
+}
+
+.inspector h3 {
+  margin: 14px 0 4px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.kv span:first-child {
+  color: var(--text-3);
+}
+
+.kv span:last-child {
+  font-family: var(--mono);
+  color: var(--text-2);
+  text-align: right;
+  word-break: break-all;
+}
+
+/* ---------- 任务坞 ---------- */
+
+.task-dock {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px 9px 13px;
+  border-radius: 999px;
+  background: var(--dock-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-hi);
+  font-size: 12px;
+  color: var(--text-2);
+  z-index: 5;
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 拖拽导入：整窗遮罩 + 虚线框，明确告诉用户「松手就会发生什么」 */
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.drop-card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 26px 38px;
+  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--accent-line);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-hi);
+  text-align: center;
+}
+
+.drop-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+.drop-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.drop-hint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* 错误提示：底部居中，不抢焦点，4 秒自动消失 */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: min(560px, calc(100% - 48px));
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--toast-bg);
+  border: 1px solid var(--toast-line);
+  color: var(--toast-text);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-1);
+  backdrop-filter: blur(16px);
+  z-index: 6;
+  animation: toast-in 240ms var(--ease-out);
+}
+
+.toast .nav-icon {
+  color: var(--danger);
+  flex: none;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ---------- 空状态 ---------- */
+
+.empty {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.empty-mark {
+  width: 46px;
+  height: 46px;
+  opacity: 0.4;
+}
+
+/* ---------- 响应式 ---------- */
+
+/* 中等宽度：标题栏换行，让说明文字拿到整行；行内标签让位给开关 */
+@media (max-width: 860px) {
+  .page-head {
+    flex-wrap: wrap;
+  }
+
+  .head-actions {
+    margin-left: auto;
+  }
+
+  .mod-row .badge {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  :root {
+    --sidebar-w: 68px;
+  }
+
+  .brand-name,
+  .brand-sub,
+  .nav-item span,
+  .nav-count,
+  .nav-label {
+    display: none;
+  }
+
+  /* 窄栏下实例名放不下，只留一个点会被误认成加载指示器，干脆整块隐藏 */
+  .instance-chip {
+    display: none;
+  }
+
+  .nav-item {
+    justify-content: center;
+    padding: 10px;
+  }
+
+  /* 窄栏下左侧竖条会挤到图标，看起来像「图标偏了」。
+     改成整块高亮 + 主色图标，既清楚又不抢位置。 */
+  .nav-item.active::before {
+    display: none;
+  }
+
+  .nav-item.active {
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+  }
+
+  .nav-item.active .nav-icon {
+    color: var(--accent);
+  }
+
+  .main-scroll {
+    padding: 0 18px 90px;
+  }
+
+  /* 吸顶条的负边距必须与内容内边距一致，否则会露出底下的画布 */
+  .page-head {
+    margin: 0 -18px 16px;
+    padding: 14px 18px 10px;
+  }
+
+  .inspector {
+    width: 100%;
+  }
+}
