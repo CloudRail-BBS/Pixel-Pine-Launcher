@@ -612,6 +612,88 @@
   color: var(--text-3);
 }
 
+.field-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  background: var(--bg-elev-3);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* 市场源列表：整行可点，选中态用主色描边 */
+.source-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition:
+    background 150ms var(--ease-out),
+    border-color 150ms linear;
+}
+
+.source-row:hover {
+  background: var(--hover);
+}
+
+.source-row.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.source-row input[type="radio"] {
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.source-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.source-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.source-url {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.source-form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.source-form-row .field {
+  height: 30px;
+  font-size: 12px;
+}
+
 .search input {
   flex: 1;
   border: none;

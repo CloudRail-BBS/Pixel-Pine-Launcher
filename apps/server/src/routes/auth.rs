@@ -26,6 +26,15 @@ pub struct VerifyBody {
     pub code: String,
 }
 
+/// 公开的认证配置：前端据此决定要不要加载人机验证。
+/// 只暴露 captcha_id（本来就是公开的），私钥永远不出服务端。
+pub async fn config(State(state): State<AppState>) -> Json<Value> {
+    Json(json!({
+        "geetestId": state.config.geetest_id,
+        "devMode": state.config.dev_mode,
+    }))
+}
+
 /// 申请验证码。
 pub async fn request_code(
     State(state): State<AppState>,

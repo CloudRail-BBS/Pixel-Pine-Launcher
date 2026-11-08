@@ -455,8 +455,10 @@ export default function App() {
                 theme={theme}
                 resolvedTheme={resolvedTheme}
                 onThemeChange={changeTheme}
-                onMarketBaseChange={() => {
+                onMarketChange={() => {
+                  setMarket([]);
                   setMarketLoaded(false);
+                  setMarketError(null);
                   void loadMarket();
                 }}
               />

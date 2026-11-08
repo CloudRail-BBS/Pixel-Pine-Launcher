@@ -1,6 +1,16 @@
 import { useState } from "react";
 
-import { OFFICIAL_BASE, marketBase, setMarketBase } from "../lib/market";
+import {
+  OFFICIAL_BASE,
+  activeSource,
+  addSource,
+  listSources,
+  removeSource,
+  setActiveSource,
+  testSource,
+  type MarketFormat,
+  type MarketSource,
+} from "../lib/market";
 import type { ThemeMode } from "../lib/theme";
 
 interface SettingsPageProps {
@@ -10,8 +20,8 @@ interface SettingsPageProps {
   theme: ThemeMode;
   resolvedTheme: "dark" | "light";
   onThemeChange: (mode: ThemeMode) => void;
-  /** 服务地址变了要让市场页重新取数 */
-  onMarketBaseChange: () => void;
+  /** 市场源变了要让市场页重新取数 */
+  onMarketChange: () => void;
 }
 
 const THEMES: { id: ThemeMode; label: string }[] = [
@@ -26,18 +36,8 @@ export function SettingsPage({
   theme,
   resolvedTheme,
   onThemeChange,
-  onMarketBaseChange,
+  onMarketChange,
 }: SettingsPageProps) {
-  const [baseInput, setBaseInput] = useState(() => marketBase());
-  const [baseHint, setBaseHint] = useState<string | null>(null);
-
-  function saveBase() {
-    const saved = setMarketBase(baseInput);
-    setBaseInput(saved);
-    setBaseHint(saved === OFFICIAL_BASE ? "已恢复官方服务" : `已切换到 ${saved}`);
-    onMarketBaseChange();
-  }
-
   return (
     <>
       <header className="page-head">
@@ -91,40 +91,7 @@ export function SettingsPage({
 
       <section className="section">
         <div className="section-title">资源市场</div>
-        <div className="card">
-          <div style={{ fontSize: 14 }}>服务地址</div>
-          <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
-            线上服务强制 HTTPS，公网地址填 http 会自动升级；自建实例在本机可以用 http
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <input
-              className="field"
-              value={baseInput}
-              onChange={(event) => {
-                setBaseInput(event.target.value);
-                setBaseHint(null);
-              }}
-              placeholder={OFFICIAL_BASE}
-              spellCheck={false}
-              aria-label="市场服务地址"
-            />
-            <button className="btn btn-sm btn-primary" onClick={saveBase}>
-              保存
-            </button>
-            <button
-              className="btn btn-sm"
-              onClick={() => {
-                setBaseInput(OFFICIAL_BASE);
-                setMarketBase("");
-                setBaseHint("已恢复官方服务");
-                onMarketBaseChange();
-              }}
-            >
-              默认
-            </button>
-          </div>
-          <div className="field-hint">{baseHint ?? `当前：${marketBase()}`}</div>
-        </div>
+        <MarketSources onChange={onMarketChange} />
       </section>
 
       <section className="section">
@@ -183,6 +150,163 @@ function Swatch({ label, color }: { label: string; color: string }) {
     >
       <div style={{ height: 34, background: color }} />
       <div style={{ padding: "6px 9px", fontSize: 11, color: "var(--text-3)" }}>{label}</div>
+    </div>
+  );
+}
+
+/** 市场源管理：默认官方，也可以接任何返回 JSON 列表的第三方市场。 */
+function MarketSources({ onChange }: { onChange: () => void }) {
+  const [sources, setSources] = useState<MarketSource[]>(() => listSources());
+  const [current, setCurrent] = useState<MarketSource>(() => activeSource());
+  const [adding, setAdding] = useState(false);
+
+  const [name, setName] = useState("");
+  const [base, setBase] = useState("");
+  const [format, setFormat] = useState<MarketFormat>("generic");
+  const [probe, setProbe] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  function refresh() {
+    const next = listSources();
+    setSources(next);
+    setCurrent(activeSource());
+    onChange();
+  }
+
+  function pick(id: string) {
+    setActiveSource(id);
+    refresh();
+  }
+
+  function drop(id: string) {
+    removeSource(id);
+    refresh();
+  }
+
+  async function runProbe() {
+    if (!base.trim()) {
+      setProbe("先填地址");
+      return;
+    }
+    setBusy(true);
+    setProbe("正在连接…");
+    const result = await testSource(base, format);
+    setProbe(result.message);
+    setBusy(false);
+  }
+
+  function submit() {
+    if (!base.trim()) {
+      setProbe("先填地址");
+      return;
+    }
+    const created = addSource({ name, base, format });
+    setActiveSource(created.id);
+    setName("");
+    setBase("");
+    setProbe(null);
+    setAdding(false);
+    refresh();
+  }
+
+  return (
+    <div className="card">
+      <div style={{ fontSize: 14 }}>市场源</div>
+      <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+        默认使用官方市场（HTTPS）。第三方市场需要返回 JSON 列表，字段名会自动识别。
+      </div>
+
+      <div className="source-list" role="radiogroup" aria-label="市场源">
+        {sources.map((source) => (
+          <label
+            key={source.id}
+            className={`source-row${source.id === current.id ? " active" : ""}`}
+          >
+            <input
+              type="radio"
+              name="market-source"
+              checked={source.id === current.id}
+              onChange={() => pick(source.id)}
+            />
+            <div className="source-main">
+              <div className="source-name">
+                {source.name}
+                {source.format === "generic" && <span className="badge">通用</span>}
+              </div>
+              <div className="source-url">{source.base}</div>
+            </div>
+            {!source.builtin && (
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={(event) => {
+                  event.preventDefault();
+                  drop(source.id);
+                }}
+              >
+                删除
+              </button>
+            )}
+          </label>
+        ))}
+      </div>
+
+      {adding ? (
+        <div className="source-form">
+          <input
+            className="field"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="名称，例如：社区市场"
+            aria-label="市场名称"
+          />
+          <input
+            className="field"
+            value={base}
+            onChange={(event) => {
+              setBase(event.target.value);
+              setProbe(null);
+            }}
+            placeholder={OFFICIAL_BASE}
+            spellCheck={false}
+            aria-label="市场地址"
+          />
+          <div className="source-form-row">
+            <select
+              className="field"
+              value={format}
+              onChange={(event) => setFormat(event.target.value as MarketFormat)}
+              aria-label="接口格式"
+            >
+              <option value="ppl">PPL 协议（/v1/packages）</option>
+              <option value="generic">通用 JSON 列表</option>
+            </select>
+            <button className="btn btn-sm" onClick={() => void runProbe()} disabled={busy}>
+              {busy ? "测试中…" : "测试"}
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={submit}>
+              添加并切换
+            </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setAdding(false);
+                setProbe(null);
+              }}
+            >
+              取消
+            </button>
+          </div>
+          {probe && <div className="field-hint">{probe}</div>}
+          <div className="field-hint">
+            通用格式：接口直接返回数组，或 <code>{"{ items: [...] }"}</code>。
+            识别字段 title/name、author/uploader、version、size、urls/downloadUrl。
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => setAdding(true)}>
+          添加市场源
+        </button>
+      )}
     </div>
   );
 }

@@ -25,16 +25,19 @@ PPL 的核心不是「装游戏」，而是**组合管理**——把每一套玩
 |---|---|---|
 | `crates/ppl-package` | ✅ | `.rwmod` 扫描、元数据解析、内容指纹、安全校验（19 项测试） |
 | `crates/ppl-core` | ✅ | 实例发现（Steam 库解析）、Mod 扫描、冲突检测、启用/禁用、预设挂载（11 项测试） |
-| `apps/desktop` | ✅ | 库 / 市场 / 地图 / 设置，深色＋浅色双主题，已接 Tauri IPC |
-| Tauri 壳 | ✅ | 11 个命令已打通，窗口可启动 |
-| 市场服务端 | ⏳ | 按方案 M3 推进，界面目前用索引数据 |
+| `apps/desktop` | ✅ | 库 / 市场 / 地图 / 设置，深色＋浅色双主题，支持多市场源 |
+| `apps/admin` | ✅ | 审核后台：登录、队列、通过、驳回 |
+| Tauri 壳 | ✅ | 12 个命令已打通，窗口可启动 |
+| 市场服务端 | ✅ | 登录 / 上传 / 审核 / 下载闭环，容器化部署 |
 | 联机模块 | ⏳ | M4，接口已实测（CNKD / RW-HPS） |
 
 ## 目录结构
 
 ```
 .
-├─ apps/desktop/        # React 19 + TypeScript + Vite
+├─ apps/desktop/        # 客户端：React 19 + TypeScript + Vite + Tauri
+├─ apps/admin/          # 审核后台：React 19 + Vite（与客户端共用 design token）
+├─ apps/server/         # 市场服务端：axum + sqlx + PostgreSQL
 ├─ crates/
 │  ├─ ppl-package/      # 资源包解析与安全校验（客户端与服务端共用）
 │  └─ ppl-core/         # 实例、资源库、预设挂载
@@ -100,9 +103,39 @@ npm run desktop:build   # 出 NSIS 安装包
 
 官方实例：**https://ziyuan.pixelpine.org**（强制 HTTPS）。
 
-客户端在设置页可以改服务地址（自建实例在本机可以用 http，公网地址填 http 会自动升级为 https）。
+客户端支持**多个市场源**，默认官方实例，可在设置页切换或添加第三方市场：
+
+| 格式 | 说明 |
+|---|---|
+| PPL 协议 | 走 `/v1/packages`，返回 `{ items, page, pageSize, total }` |
+| 通用 JSON | 接口直接返回数组，或 `{ items: [...] }` 之类包一层 |
+
+通用格式会按常见字段名归一化（`title`/`name`、`author`/`uploader`、`version`、
+`size`、`urls`/`downloadUrl`），认不出标题的条目直接丢弃，不会把脏数据塞进界面。
+添加前可以点「测试」先探一次，能读到几条会如实告诉你。
+
 安装链路是「下载到临时文件 → 资源包安全校验 → 进预设目录」，校验不过的文件不会留在磁盘上。
 「已安装 / 可更新」由当前预设的清单判定，不是市场自己记的一份状态。
+
+> **关于 http**：`http://ziyuan.pixelpine.org` 会 301 跳 HTTPS。
+> 跨域预检遇到 301 直接失败，所以客户端里填 http 会自动升级成 https——
+> 不是保守，是 http 在现代浏览器里根本走不通。
+> 本地和 10./192.168./172.16-31. 网段保留 http，自建实例调试不受影响。
+
+## 审核后台
+
+`apps/admin` 是独立的网页后台，审核员在这里处理队列。
+
+```bash
+cd apps/admin
+npm install
+npm run dev        # http://127.0.0.1:5174
+```
+
+- 登录用邮箱验证码，和客户端同一套接口；管理员由 `PPL_ADMIN_EMAIL` 指定
+- 左侧队列、右侧详情，详情里带**下载地址**——先自己装一遍再决定放不放行
+- 驳回必须写原因，原因会原样展示给作者
+- 启用 Geetest 的实例会按需加载极验 SDK，没启用的实例一行脚本都不拉
 
 ## 市场服务端
 

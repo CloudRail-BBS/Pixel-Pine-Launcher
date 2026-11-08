@@ -37,6 +37,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/packages/{id}", get(packages::detail))
         .route("/v1/packages/{id}/report", post(packages::report))
         // 登录
+        .route("/v1/auth/config", get(auth::config))
         .route("/v1/auth/email/request", post(auth::request_code))
         .route("/v1/auth/email/verify", post(auth::verify_code))
         .route("/v1/me", get(auth::me))
