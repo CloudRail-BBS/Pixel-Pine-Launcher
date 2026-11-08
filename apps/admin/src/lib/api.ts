@@ -94,7 +94,7 @@ function describeStatus(status: number, contentType: string): string {
   if (status === 404) return "接口不存在（404）：服务端可能还是旧版本，重新部署后再试";
   if (status === 405) return "请求方法不被接受（405）：前后端版本对不上";
   if (status === 502 || status === 503 || status === 504) {
-    return `网关连不上服务端（${status}）：反向代理或容器可能没起来`;
+    return `网关连不上服务端（${status}）：反向代理或容器可能没起来（具体地址见控制台）`;
   }
   if (contentType.includes("html")) {
     return `请求被静态页面接走了（${status}）：路径或服务地址不对`;
@@ -123,7 +123,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(endpoint, { ...init, headers });
   } catch {
-    throw new ApiError(0, "连不上服务端，检查网络或服务地址");
+    console.warn(`[ppl] 请求发不出去：${init.method ?? "GET"} ${endpoint}`);
+    throw new ApiError(0, `连不上服务端（${new URL(endpoint).origin}），检查网络或服务地址`);
+  }
+
+  if (!response.ok) {
+    // 报错时把真实地址和状态打出来：界面上的文案只说「网关 502」，
+    // 看不出来打的是哪台机器——地址被 localStorage 改过时尤其难查
+    console.warn(`[ppl] ${init.method ?? "GET"} ${endpoint} → ${response.status}`);
   }
 
   if (response.status === 401) {
