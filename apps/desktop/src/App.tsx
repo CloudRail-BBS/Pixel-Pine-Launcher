@@ -6,7 +6,7 @@ import { AlertIcon, BoxIcon } from "./components/Icons";
 import { useSpring } from "./hooks/useSpring";
 import { formatBytes } from "./lib/format";
 import * as api from "./lib/api";
-import { marketPackages } from "./lib/mock";
+import { PAGE_SIZE, listPackages } from "./lib/market";
 import {
   applyTheme,
   readThemeMode,
@@ -19,7 +19,7 @@ import { MapsPage } from "./pages/MapsPage";
 import { MarketPage } from "./pages/MarketPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import type { GameMap, Instance, Loadout, LocalMod } from "./lib/types";
+import type { GameMap, Instance, Loadout, LocalMod, MarketPackage, RemotePackage } from "./lib/types";
 
 const APP_VERSION = "0.1.0";
 
@@ -34,6 +34,11 @@ export default function App() {
   const [maps, setMaps] = useState<GameMap[]>([]);
   const [loadingMaps, setLoadingMaps] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [market, setMarket] = useState<MarketPackage[]>([]);
+  const [marketTotal, setMarketTotal] = useState(0);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const [marketLoaded, setMarketLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [task, setTask] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -94,6 +99,100 @@ export default function App() {
       setLoadingMaps(false);
     }
   }, [instance, notify]);
+
+  // 「已安装」判定以当前预设的清单为准，而不是市场自己记状态。
+  // 这样手动删了包、切了预设，市场页都会跟着反映真实情况。
+  const installedVersions = useMemo(() => {
+    const active = loadouts.find((item) => item.id === activeLoadout);
+    const versions = new Map<string, string>();
+    for (const pkg of active?.packages ?? []) versions.set(pkg.id, pkg.version);
+    return versions;
+  }, [loadouts, activeLoadout]);
+
+  const decorate = useCallback(
+    (item: RemotePackage): MarketPackage => {
+      const installed = installedVersions.get(item.slug);
+      const state: MarketPackage["state"] = !installed
+        ? "available"
+        : installed === item.version
+          ? "installed"
+          : "update";
+      return { ...item, state };
+    },
+    [installedVersions],
+  );
+
+  const loadMarket = useCallback(async () => {
+    setMarketLoading(true);
+    setMarketError(null);
+    try {
+      const result = await listPackages({ size: PAGE_SIZE });
+      setMarket(result.items.map(decorate));
+      setMarketTotal(result.total);
+      setMarketLoaded(true);
+    } catch (error) {
+      setMarketError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setMarketLoading(false);
+    }
+  }, [decorate]);
+
+  // 切预设或装完东西后重新判定状态，不重新请求
+  useEffect(() => {
+    setMarket((current) => current.map(decorate));
+  }, [decorate]);
+
+  useEffect(() => {
+    if (page === "market" && !marketLoaded && !marketLoading && !marketError) {
+      void loadMarket();
+    }
+  }, [page, marketLoaded, marketLoading, marketError, loadMarket]);
+
+  const installFromMarket = useCallback(
+    async (item: MarketPackage) => {
+      if (demo) {
+        notify("演示模式：在桌面端才能真的下载安装");
+        return;
+      }
+      if (!instance) {
+        notify("先添加游戏目录，再安装资源");
+        return;
+      }
+      const url = item.urls[0];
+      if (!url) {
+        notify(`《${item.title}》没有可用的下载地址`);
+        return;
+      }
+
+      setTask(`正在下载《${item.title}》…`);
+      try {
+        const result = await api.installFromUrl(
+          instance.root,
+          activeLoadout,
+          url,
+          item.slug,
+          item.version,
+        );
+        // 重新读预设：安装状态由清单驱动，装完立刻变成「已安装」
+        try {
+          setLoadouts(await api.listLoadouts());
+        } catch {
+          // 读失败不影响安装结果
+        }
+        await reloadMods(instance).catch(() => undefined);
+        notify(
+          result.attached
+            ? `已安装《${item.title}》`
+            : `已安装《${item.title}》，但 mods/units 是你自己的文件夹，PPL 没有接管`,
+        );
+      } catch (error) {
+        notify(String(error));
+      } finally {
+        setTask(null);
+      }
+    },
+    [demo, instance, activeLoadout, reloadMods, notify],
+  );
 
   const importFiles = useCallback(
     async (files: string[]) => {
@@ -326,7 +425,16 @@ export default function App() {
               />
             )}
 
-            {page === "market" && <MarketPage packages={marketPackages} onInstall={() => {}} />}
+            {page === "market" && (
+              <MarketPage
+                packages={market}
+                total={marketTotal}
+                loading={marketLoading}
+                error={marketError}
+                onRetry={() => void loadMarket()}
+                onInstall={(item) => void installFromMarket(item)}
+              />
+            )}
 
             {page === "mods" && (
               <PlaceholderPage title="Mod" description="导入、批量管理与冲突排查" />
@@ -347,6 +455,10 @@ export default function App() {
                 theme={theme}
                 resolvedTheme={resolvedTheme}
                 onThemeChange={changeTheme}
+                onMarketBaseChange={() => {
+                  setMarketLoaded(false);
+                  void loadMarket();
+                }}
               />
             )}
           </div>

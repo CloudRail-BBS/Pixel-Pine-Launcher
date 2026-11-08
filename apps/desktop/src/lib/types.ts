@@ -59,16 +59,30 @@ export interface GameMap {
   hasPreview: boolean;
 }
 
-export interface MarketPackage {
+/** 市场服务端返回的条目，字段与 `GET /v1/packages` 一一对应。
+ * 不在这里混入本地状态，避免把两种来源的数据黏成一个类型。 */
+export interface RemotePackage {
   id: string;
-  title: string;
-  author: string;
-  version: string;
+  slug: string;
   kind: "mod" | "map";
-  tag: string;
+  title: string;
+  summary: string;
+  author: string;
+  cover: string | null;
+  version: string;
   size: number;
-  downloads: number;
-  rating: number;
-  isMod: boolean;
+  contentHash: string | null;
+  urls: string[];
+}
+
+/** 服务端条目 + 本地算出来的安装状态。 */
+export interface MarketPackage extends RemotePackage {
   state: MarketState;
+}
+
+export interface MarketPageResult {
+  items: RemotePackage[];
+  page: number;
+  pageSize: number;
+  total: number;
 }

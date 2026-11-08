@@ -34,6 +34,49 @@ pub fn import_package(
     loadout_id: &str,
     source: &Path,
 ) -> Result<ImportedPackage> {
+    let stem = source
+        .file_stem()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "imported".to_string());
+    import_inner(
+        store,
+        loadout_id,
+        source,
+        &sanitize(&stem),
+        "local",
+        PackageSource::Local,
+    )
+}
+
+/// 从市场安装：id 用服务端 slug、版本用服务端版本、来源标为 market。
+///
+/// 版本要真的记下来，否则「已安装 / 可更新」永远判不出来。
+/// 文件名带上版本号，同一包的两个版本可以在一个预设里共存。
+pub fn install_from_path(
+    store: &LoadoutStore,
+    loadout_id: &str,
+    source: &Path,
+    id: &str,
+    version: &str,
+) -> Result<ImportedPackage> {
+    import_inner(
+        store,
+        loadout_id,
+        source,
+        &sanitize(id),
+        version,
+        PackageSource::Market,
+    )
+}
+
+fn import_inner(
+    store: &LoadoutStore,
+    loadout_id: &str,
+    source: &Path,
+    id: &str,
+    version: &str,
+    origin: PackageSource,
+) -> Result<ImportedPackage> {
     if !source.is_file() {
         return Err(Error::NotPlayable(source.to_path_buf()));
     }
@@ -51,32 +94,31 @@ pub fn import_package(
         return Err(Error::LoadoutNotFound(loadout_id.to_string()));
     }
 
-    let stem = source
-        .file_stem()
-        .map(|value| value.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "imported".to_string());
-    let file_name = format!("{}.rwmod", sanitize(&stem));
+    let file_name = match origin {
+        PackageSource::Market => format!("{}@{}.rwmod", sanitize(id), sanitize(version)),
+        PackageSource::Local => format!("{}.rwmod", sanitize(id)),
+    };
     let dest = dir.join(&file_name);
     std::fs::copy(source, &dest)?;
 
     let mut loadout = store.load(loadout_id)?;
     loadout.upsert_package(LoadoutPackage {
-        id: sanitize(&stem),
-        version: "local".to_string(),
-        source: PackageSource::Local,
+        id: id.to_string(),
+        version: version.to_string(),
+        source: origin,
         dir: file_name.clone(),
         enabled: true,
     });
     store.save(&loadout)?;
 
     let title = if meta.title.trim().is_empty() {
-        stem.clone()
+        id.to_string()
     } else {
         meta.title.clone()
     };
 
     Ok(ImportedPackage {
-        id: sanitize(&stem),
+        id: id.to_string(),
         title,
         file: file_name,
         size: meta.package_size,

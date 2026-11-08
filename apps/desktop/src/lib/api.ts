@@ -98,6 +98,24 @@ export async function importPackage(
   return invoke<ImportedPackage>("import_package", { root, loadoutId, path });
 }
 
+/** 从市场下载并安装。下载、校验、落盘都在内核侧完成，浏览器预览里不可用。 */
+export async function installFromUrl(
+  root: string,
+  loadoutId: string,
+  url: string,
+  slug: string,
+  version: string,
+): Promise<ImportedPackage> {
+  if (!isTauri()) {
+    throw new Error("浏览器预览里不能安装资源，请在桌面端操作");
+  }
+  return invoke<ImportedPackage>("install_from_url", { root, loadoutId, url, slug, version });
+}
+
+export async function listLoadouts(): Promise<Loadout[]> {
+  return invoke<Loadout[]>("list_loadouts");
+}
+
 export async function setModEnabled(root: string, name: string, enabled: boolean): Promise<void> {
   await invoke("set_mod_enabled", { root, name, enabled });
 }

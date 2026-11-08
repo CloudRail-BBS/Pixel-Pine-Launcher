@@ -222,26 +222,131 @@ struct ImportView {
 #[tauri::command]
 fn import_package(root: String, loadout_id: String, path: String) -> Result<ImportView, String> {
     let store = LoadoutStore::default_store();
-    let imported =
-        ppl_core::import_package(&store, &loadout_id, Path::new(&path)).map_err(fail)?;
+    let imported = ppl_core::import_package(&store, &loadout_id, Path::new(&path)).map_err(fail)?;
+    Ok(attach_after_import(&store, &root, &loadout_id, imported))
+}
 
-    // 游戏目录还没被 PPL 接管时顺手接上，否则导入的包在游戏里看不见。
-    // 已经是真实目录（玩家手动装的 Mod）就绝不擅自替换。
-    let game_root = Path::new(&root);
+/// 市场下载的单包体积上限，和资源包校验的口径保持一致。
+const MAX_DOWNLOAD_BYTES: u64 = 256 * 1024 * 1024;
+
+/// 只用做文件名，别让 slug 带出路径穿越。
+fn safe_slug(slug: &str) -> String {
+    let cleaned: String = slug
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    if cleaned.trim_matches('-').is_empty() {
+        "package".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// 从市场下载并安装。
+///
+/// 整个链路是「下载到临时文件 → 内核校验 → 进预设目录」，
+/// 校验不过的包不会在用户目录里留下任何东西。
+#[tauri::command]
+async fn install_from_url(
+    root: String,
+    loadout_id: String,
+    url: String,
+    slug: String,
+    version: String,
+) -> Result<ImportView, String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("下载地址不是 http(s)，已拒绝".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .user_agent(concat!("PixelPineLauncher/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("初始化下载器失败：{error}"))?;
+
+    let response = client.get(&url).send().await.map_err(|error| {
+        if error.is_timeout() {
+            "下载超时，检查网络后重试".to_string()
+        } else if error.is_connect() {
+            "连不上下载服务器".to_string()
+        } else {
+            format!("下载失败：{error}")
+        }
+    })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(match status.as_u16() {
+            404 => "下载地址失效（404），这个版本可能已下架".to_string(),
+            403 => "没有下载权限（403）".to_string(),
+            code => format!("下载失败：服务端返回 {code}"),
+        });
+    }
+    if let Some(length) = response.content_length() {
+        if length > MAX_DOWNLOAD_BYTES {
+            return Err(format!(
+                "资源体积 {:.0} MB 超过上限",
+                length as f64 / 1_048_576.0
+            ));
+        }
+    }
+
+    // 一次性读进内存：资源包上限 256MB，比起流式写入，
+    // 这里换来的是「要么完整拿到、要么彻底失败」，不会留下半个文件。
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("下载中断：{error}"))?;
+    if bytes.is_empty() {
+        return Err("下载到的文件是空的".to_string());
+    }
+    if bytes.len() as u64 > MAX_DOWNLOAD_BYTES {
+        return Err("资源体积超过上限".to_string());
+    }
+
+    // 临时文件名用 slug，导入后预设里记的 id 才是市场里的那个
+    let temp = std::env::temp_dir().join(format!("ppl-market-{}.rwmod", safe_slug(&slug)));
+    std::fs::write(&temp, &bytes).map_err(|error| format!("写临时文件失败：{error}"))?;
+
+    let store = LoadoutStore::default_store();
+    let outcome = ppl_core::install_from_path(&store, &loadout_id, &temp, &slug, &version)
+        .map_err(fail)
+        .map(|imported| attach_after_import(&store, &root, &loadout_id, imported));
+    let _ = std::fs::remove_file(&temp);
+    outcome
+}
+
+/// 导入完成后顺手接管游戏目录。
+///
+/// 没接管的话，包进了预设但游戏看不见，用户会以为安装失败。
+/// `ForeignDirectory` 绝不擅自动——那是玩家自己扫进来的 Mod。
+fn attach_after_import(
+    store: &LoadoutStore,
+    root: &str,
+    loadout_id: &str,
+    imported: ppl_core::ImportedPackage,
+) -> ImportView {
+    let game_root = Path::new(root);
     let attached = match store.link_status(game_root) {
-        LinkStatus::Absent => store.attach(game_root, &loadout_id).is_ok(),
+        LinkStatus::Absent => store.attach(game_root, loadout_id).is_ok(),
         LinkStatus::Managed => true,
         LinkStatus::ForeignDirectory => false,
     };
 
-    Ok(ImportView {
+    ImportView {
         id: imported.id,
         title: imported.title,
         file: imported.file,
         size: imported.size,
         unit_count: imported.unit_count,
         attached,
-    })
+    }
 }
 
 #[tauri::command]
@@ -285,6 +390,7 @@ pub fn run() {
             scan_mods,
             scan_maps,
             import_package,
+            install_from_url,
             set_mod_enabled,
             attach_loadout,
             link_status,

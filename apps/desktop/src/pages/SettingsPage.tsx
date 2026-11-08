@@ -1,3 +1,6 @@
+import { useState } from "react";
+
+import { OFFICIAL_BASE, marketBase, setMarketBase } from "../lib/market";
 import type { ThemeMode } from "../lib/theme";
 
 interface SettingsPageProps {
@@ -7,6 +10,8 @@ interface SettingsPageProps {
   theme: ThemeMode;
   resolvedTheme: "dark" | "light";
   onThemeChange: (mode: ThemeMode) => void;
+  /** 服务地址变了要让市场页重新取数 */
+  onMarketBaseChange: () => void;
 }
 
 const THEMES: { id: ThemeMode; label: string }[] = [
@@ -21,7 +26,18 @@ export function SettingsPage({
   theme,
   resolvedTheme,
   onThemeChange,
+  onMarketBaseChange,
 }: SettingsPageProps) {
+  const [baseInput, setBaseInput] = useState(() => marketBase());
+  const [baseHint, setBaseHint] = useState<string | null>(null);
+
+  function saveBase() {
+    const saved = setMarketBase(baseInput);
+    setBaseInput(saved);
+    setBaseHint(saved === OFFICIAL_BASE ? "已恢复官方服务" : `已切换到 ${saved}`);
+    onMarketBaseChange();
+  }
+
   return (
     <>
       <header className="page-head">
@@ -70,6 +86,44 @@ export function SettingsPage({
             <Swatch label="卡片" color="var(--bg-elev)" />
             <Swatch label="主色" color="var(--accent)" />
           </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section-title">资源市场</div>
+        <div className="card">
+          <div style={{ fontSize: 14 }}>服务地址</div>
+          <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+            线上服务强制 HTTPS，公网地址填 http 会自动升级；自建实例在本机可以用 http
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <input
+              className="field"
+              value={baseInput}
+              onChange={(event) => {
+                setBaseInput(event.target.value);
+                setBaseHint(null);
+              }}
+              placeholder={OFFICIAL_BASE}
+              spellCheck={false}
+              aria-label="市场服务地址"
+            />
+            <button className="btn btn-sm btn-primary" onClick={saveBase}>
+              保存
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setBaseInput(OFFICIAL_BASE);
+                setMarketBase("");
+                setBaseHint("已恢复官方服务");
+                onMarketBaseChange();
+              }}
+            >
+              默认
+            </button>
+          </div>
+          <div className="field-hint">{baseHint ?? `当前：${marketBase()}`}</div>
         </div>
       </section>
 

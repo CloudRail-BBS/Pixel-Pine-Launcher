@@ -31,7 +31,7 @@ pub mod maps;
 pub mod paths;
 
 pub use error::{Error, Result};
-pub use import::{ImportedPackage, import_many, import_package};
+pub use import::{ImportedPackage, import_many, import_package, install_from_path};
 pub use instance::{Instance, InstanceSource, Probe, discover};
 pub use library::{
     Conflict, DISABLED_DIR, LocalMod, detect_conflicts, scan_units, scan_units_with_disabled,

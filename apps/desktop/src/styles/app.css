@@ -151,6 +151,8 @@
   width: 17px;
   height: 17px;
   flex: none;
+  /* inline 的 svg 会带基线间隙，在同一列里累积成 1–2px 的错位 */
+  display: block;
   opacity: 0.9;
 }
 
@@ -583,6 +585,33 @@
   background: var(--bg-elev-2);
 }
 
+/* 设置里的单行输入：和搜索框区分开，方角、更紧凑 */
+.field {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  transition: border-color 160ms linear;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+
+.field-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
 .search input {
   flex: 1;
   border: none;
@@ -677,6 +706,100 @@
   font-variant-numeric: tabular-nums;
   display: flex;
   gap: 10px;
+}
+
+/* 简介固定两行：卡片高度必须一致，否则网格会参差 */
+.pkg-summary {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 36px;
+}
+
+.pkg-author {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pkg-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 骨架屏：只占位，不抢注意力 */
+.pkg-card.skeleton {
+  pointer-events: none;
+}
+
+.pkg-card.skeleton .pkg-cover,
+.skeleton-line {
+  background: var(--bg-elev-3);
+}
+
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 10px;
+}
+
+.pkg-card.skeleton .pkg-cover,
+.pkg-card.skeleton .skeleton-line {
+  animation: skeleton-pulse 1.5s var(--ease-out) infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pkg-card.skeleton .pkg-cover,
+  .pkg-card.skeleton .skeleton-line {
+    animation: none;
+  }
+}
+
+/* 市场连不上：给出原因和重试按钮，而不是一个转不完的圈 */
+.market-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-strong);
+  background: var(--warn-soft);
+  max-width: 560px;
+}
+
+.market-error-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--warn);
+}
+
+.market-error-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-2);
 }
 
 /* 像素封面：16×9 网格，用色块拼地形剪影，纯 CSS 生成 */

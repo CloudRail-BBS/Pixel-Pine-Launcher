@@ -77,6 +77,7 @@ npm run desktop:build   # 出 NSIS 安装包
 | `scan_mods` | 扫描 `mods/units`，含禁用项与冲突 |
 | `scan_maps` | 扫描 `mods/maps`，解析 TMX 尺寸与预览图 |
 | `import_package` | 校验本地 `.rwmod` 后导入指定预设（拖拽即可） |
+| `install_from_url` | 从市场下载 → 校验 → 安装到预设（Rust 侧下载，带体积上限） |
 | `set_mod_enabled` | 启用/禁用（移入移出 `.disabled/`，可逆） |
 | `list_loadouts` / `create_loadout` | 预设列表与新建 |
 | `attach_loadout` / `link_status` | 挂载预设 / 查询当前接管状态 |
@@ -95,9 +96,18 @@ npm run desktop:build   # 出 NSIS 安装包
 校验不通过的文件不会落盘。落盘的包归预设所有，切预设时互不干扰；
 卸载只是改 manifest，禁用是移入 `.disabled/`，都能原样还原。
 
+## 资源市场
+
+官方实例：**https://ziyuan.pixelpine.org**（强制 HTTPS）。
+
+客户端在设置页可以改服务地址（自建实例在本机可以用 http，公网地址填 http 会自动升级为 https）。
+安装链路是「下载到临时文件 → 资源包安全校验 → 进预设目录」，校验不过的文件不会留在磁盘上。
+「已安装 / 可更新」由当前预设的清单判定，不是市场自己记的一份状态。
+
 ## 市场服务端
 
 `apps/server` 是一个独立 workspace（Rust + axum + PostgreSQL），已支持容器部署。
+线上实例已部署在 `ziyuan.pixelpine.org`，`/healthz` 与 `/readyz` 可直接用于探活。
 完整步骤（含公网反代、备份恢复、裸机 systemd、排障）见 **[docs/DEPLOY.md](docs/DEPLOY.md)**。
 
 ### 端点
