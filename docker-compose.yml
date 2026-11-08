@@ -23,7 +23,10 @@ services:
 
   server:
     build:
-      context: ./apps/server
+      # 必须是仓库根：server 依赖 ../../crates/ppl-package，
+      # 只把 apps/server 当上下文会让那个路径在镜像里消失。
+      context: .
+      dockerfile: apps/server/Dockerfile
     restart: unless-stopped
     depends_on:
       db:

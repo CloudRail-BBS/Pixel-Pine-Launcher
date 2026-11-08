@@ -1,17 +1,14 @@
 name: Release
 
-# 打 tag 就出安装包，也可以在 Actions 页面手动跑一次。
-# 安装包不在本地构建：签名密钥和产物都留在 CI，谁都能复现同一份二进制。
+# 只有打版本标签（vX.Y.Z）才会打包发版。
+# 普通提交只走 CI（fmt / clippy / test），不产物、不发 Release——
+# 免得每推一次代码就多一个「看起来能用」的安装包。
+#
+# 安装包不在本地构建：签名密钥与产物都留在 CI，谁都能复现同一份二进制。
 
 on:
   push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 要发布的标签（必须和 tauri.conf.json 的 version 对得上）
-        required: true
-        default: v0.1.0
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
 
 permissions:
   contents: write
@@ -34,6 +31,34 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
+      # 标签和版本号对不上就早点停下：
+      # 打错标签的代价是发出去一个版本号错误的安装包，
+      # 而自动更新是拿版本号比大小的，错了会引发一堆「为什么更新不了」。
+      - name: 校验标签与版本号
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::标签 $tag 不是 vX.Y.Z 形式，拒绝打包"
+            exit 1
+          fi
+
+          conf=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          pkg=$(node -p "require('./apps/desktop/package.json').version")
+
+          if [[ "$tag" != "v$conf" ]]; then
+            echo "::error::标签 $tag 与 tauri.conf.json 的版本 $conf 不一致"
+            exit 1
+          fi
+          if [[ "$conf" != "$pkg" ]]; then
+            echo "::error::tauri.conf.json ($conf) 与 package.json ($pkg) 版本不一致"
+            exit 1
+          fi
+
+          echo "版本校验通过：$tag"
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
@@ -54,8 +79,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
-          tagName: ${{ github.event.inputs.tag || github.ref_name }}
-          releaseName: Pixel-Pine-Launcher ${{ github.event.inputs.tag || github.ref_name }}
+          tagName: ${{ github.ref_name }}
+          releaseName: Pixel-Pine-Launcher ${{ github.ref_name }}
           # 预览版固定标成 pre-release：
           # GitHub 的 releases/latest 只指向正式版，预览版不会被误当成稳定版本推给所有人
           prerelease: true

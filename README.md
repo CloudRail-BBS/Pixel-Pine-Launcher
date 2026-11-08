@@ -297,6 +297,9 @@ curl http://localhost:8080/healthz
 docker compose logs -f server
 ```
 
+- **构建上下文是仓库根目录**（compose 已配 `context: .`）：server 依赖
+  `../../crates/ppl-package`，只拿 `apps/server` 当上下文会让这个路径在镜像里消失。
+  手动构建用 `docker build -f apps/server/Dockerfile .`。
 - 数据库数据存在 `ppl-db` 卷里；`docker compose down -v` 会连数据一起删掉。
 - 容器内端口固定 `8080`，宿主机端口由 `.env` 的 `PPL_PORT` 决定。
 - 生产环境请删掉 compose 里 `db` 的 `ports`（那是给本地连库调试用的），

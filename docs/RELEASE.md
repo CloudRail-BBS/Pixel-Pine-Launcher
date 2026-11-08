@@ -11,7 +11,7 @@
 #    apps/desktop/package.json          "version"
 #    apps/desktop/src-tauri/tauri.conf.json  "version"
 
-# 2. 提交后打 tag，tag 必须带 v 前缀
+# 2. 提交后打 tag，必须是 vX.Y.Z（与上面两处版本号完全一致）
 git tag v0.1.0
 git push origin v0.1.0
 ```
@@ -27,7 +27,17 @@ windows-latest
   └─ 创建 Release（prerelease=true）并上传产物 + latest.json
 ```
 
-也可以在 Actions 页面手动 `Run workflow`，填 tag 名。
+**只有打版本标签才会打包**：普通提交只跑 CI（fmt / clippy / test），
+不产物、不发 Release——避免每推一次代码就多一个「看起来能用」的安装包。
+
+workflow 第一步会校验三件事，任一不符直接失败：
+
+- 标签形如 `vX.Y.Z`
+- `v` 后面的部分等于 `tauri.conf.json` 的 `version`
+- `tauri.conf.json` 与 `package.json` 的 `version` 一致
+
+这条校验不是为了规范，而是护栏：自动更新按版本号比大小，
+发错版本号的安装包会让用户永远收不到后续更新。
 
 **预览版固定标成 pre-release**：GitHub 的 `releases/latest` 只指向正式版，
 预览版不会被误当成稳定版本推给所有用户。等要发正式版时，把 workflow 里的

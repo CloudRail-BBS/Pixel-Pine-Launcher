@@ -1,22 +1,45 @@
 # syntax=docker/dockerfile:1
 
-# ---------- 构建 ----------
+# ⚠️ 构建上下文必须是**仓库根目录**，不是 apps/server。
+#
+# `apps/server/Cargo.toml` 里有 `ppl-package = { path = "../../crates/ppl-package" }`，
+# 只把 apps/server 当上下文时，这个路径在镜像里根本不存在，
+# 依赖解析会直接失败（failed to read /crates/ppl-package/Cargo.toml）。
+#
+#   docker build -f apps/server/Dockerfile .
+#
+# compose 已经配好 context: .，正常用 `docker compose up -d --build` 即可。
+
 FROM rust:1-slim-bookworm AS builder
 
 WORKDIR /build
 
-# 先只拷贝清单并建一个空壳，让依赖编译结果能命中缓存。
+# ---------- 1. 只放清单和空壳源码，先把依赖编译结果缓存下来 ----------
 # 改业务代码时不会重编 axum / sqlx 这一大坨。
+#
+# ppl-core 的清单也要放：根 Cargo.toml 把它列为 workspace 成员，
+# 少了它的 manifest，cargo 解析 workspace 时会报成员缺失。
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src \
-    && echo 'fn main() {}' > src/main.rs \
-    && cargo build --release \
-    && rm -rf src
+COPY crates/ppl-package/Cargo.toml crates/ppl-package/Cargo.toml
+COPY crates/ppl-core/Cargo.toml crates/ppl-core/Cargo.toml
+COPY apps/server/Cargo.toml apps/server/Cargo.lock apps/server/
 
-COPY src ./src
-COPY migrations ./migrations
-# 空壳的 mtime 比源码新，touch 一下强制重编本 crate
-RUN touch src/main.rs && cargo build --release
+RUN mkdir -p apps/server/src crates/ppl-package/src crates/ppl-core/src \
+    && echo 'fn main() {}' > apps/server/src/main.rs \
+    && : > crates/ppl-package/src/lib.rs \
+    && : > crates/ppl-core/src/lib.rs \
+    && cd apps/server && cargo build --release \
+    && cd /build && rm -rf apps/server/src crates/ppl-package/src crates/ppl-core/src
+
+# ---------- 2. 换成真实源码再编一次 ----------
+COPY crates/ppl-package/src crates/ppl-package/src
+COPY apps/server/src apps/server/src
+COPY apps/server/migrations apps/server/migrations
+
+# COPY 会保留源文件 mtime，可能比空壳还旧；不 touch 的话
+# cargo 会认为缓存是最新的，直接把空壳产物当成最终二进制。
+RUN touch crates/ppl-package/src/lib.rs apps/server/src/main.rs \
+    && cd apps/server && cargo build --release
 
 # ---------- 运行 ----------
 FROM debian:bookworm-slim
@@ -26,7 +49,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --uid 10001 ppl
 
-COPY --from=builder /build/target/release/ppl-server /usr/local/bin/ppl-server
+# apps/server 是独立 workspace，target 在它自己下面
+COPY --from=builder /build/apps/server/target/release/ppl-server /usr/local/bin/ppl-server
 
 USER ppl
 WORKDIR /app

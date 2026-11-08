@@ -56,6 +56,12 @@ PPL_PORT=8080
 docker compose up -d --build
 ```
 
+> 镜像的**构建上下文是仓库根目录**（compose 里已配好 `context: .`）。
+> 因为 `apps/server` 依赖 `../../crates/ppl-package`，只把 `apps/server`
+> 当上下文会让这个路径在镜像里消失，构建直接报
+> `failed to read /crates/ppl-package/Cargo.toml`。
+> 手动构建请用 `docker build -f apps/server/Dockerfile .`，别 cd 进 apps/server。
+
 首次构建会拉 `rust:1-slim-bookworm` 并编译依赖，**通常 5–15 分钟**（取决于机器和网络）。
 之后的构建会命中依赖缓存，通常 1–2 分钟。
 
