@@ -19,6 +19,9 @@ dist/
 .env
 .env.local
 
+# 服务端本地存储
+apps/server/data/
+
 # 本地数据与日志
 *.log
 /ppl-data/

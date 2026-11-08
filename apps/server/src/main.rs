@@ -5,9 +5,13 @@
 //!   否则容器编排里数据库晚几秒起来就会导致反复重启。
 //! - **健康检查分两档**：`/healthz` 看进程，`/readyz` 看依赖。
 
+mod auth;
 mod config;
 mod db;
+mod error;
+mod mail;
 mod routes;
+mod storage;
 
 use std::time::Duration;
 
@@ -35,8 +39,31 @@ async fn main() -> anyhow::Result<()> {
         let _ = tokio::time::timeout(Duration::from_secs(30), db::try_migrate(&migrate_pool)).await;
     });
 
+    // 存储目录要赶在路由挂载静态服务之前建好，否则首次上传才建会 404
+    if let Err(error) = std::fs::create_dir_all(&config.storage_dir) {
+        tracing::warn!(%error, dir = %config.storage_dir.display(), "创建存储目录失败");
+    }
+
+    // 缺什么就明说，别等上线才发现是裸奔
+    if !config.geetest_ready() {
+        tracing::warn!("未配置 PPL_GEETEST_ID / PPL_GEETEST_KEY，注册流程不校验人机");
+    }
+    if !config.smtp_ready() {
+        if config.dev_mode {
+            tracing::warn!("未配置 SMTP，开发模式下验证码随接口返回");
+        } else {
+            tracing::warn!("未配置 SMTP，验证码邮件发不出去，注册会失败");
+        }
+    }
+    if config.dev_mode {
+        tracing::warn!("PPL_DEV_MODE 已开启，验证码会随响应返回，生产环境必须关闭");
+    }
+
     let addr = format!("{}:{}", config.host, config.port);
-    let state = AppState { pool };
+    let state = AppState {
+        pool,
+        config: config.clone(),
+    };
     let app = routes::router(state);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;

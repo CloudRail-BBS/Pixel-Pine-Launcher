@@ -112,14 +112,40 @@ npm run desktop:build   # 出 NSIS 安装包
 
 ### 端点
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/healthz` | 进程存活，容器编排用它决定是否重启 |
-| GET | `/readyz` | 依赖就绪（含数据库），负载均衡用它决定是否摘流量 |
-| GET | `/v1/packages?q=&page=&size=` | 资源分页列表 |
-| GET | `/v1/packages/{id}` | 资源详情，`id` 可以是 uuid 或 slug |
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| GET | `/healthz` | — | 进程存活，编排用它决定是否重启 |
+| GET | `/readyz` | — | 依赖就绪（含数据库），负载均衡用它摘流量 |
+| GET | `/v1/packages` | — | 分页列表，只返回过审版本 |
+| GET | `/v1/packages/{id}` | — | 详情，`id` 可以是 uuid 或 slug |
+| POST | `/v1/packages/{id}/report` | — | 举报 |
+| POST | `/v1/auth/email/request` | — | 申请验证码（含人机校验） |
+| POST | `/v1/auth/email/verify` | — | 校验验证码，返回 JWT |
+| GET | `/v1/me` | 用户 | 当前登录信息 |
+| GET/POST | `/v1/me/packages` | 用户 | 我的资源 / 新建草稿 |
+| POST | `/v1/packages/{id}/versions` | 用户 | 上传版本（multipart） |
+| POST | `/v1/packages/{id}/submit` | 用户 | 提交审核 |
+| GET | `/v1/admin/queue` | 管理员 | 待审队列 |
+| POST | `/v1/admin/packages/{id}/approve` | 管理员 | 通过 |
+| POST | `/v1/admin/packages/{id}/reject` | 管理员 | 驳回（必须写原因） |
+| GET | `/files/{slug}/{version}.rwmod` | — | 资源包下载 |
+
+完整协议、请求体与 curl 示例见 **[docs/API.md](docs/API.md)**。
 
 健康检查分成两档是刻意的：混成一个，数据库抖一下就会把好好的进程杀掉重来。
+
+### 上传与审核
+
+```
+建草稿 → 上传 .rwmod → 服务端用同一份规则校验 → 提交审核 → 通过 / 驳回
+```
+
+服务端直接依赖 `crates/ppl-package`，与客户端**共用同一套校验规则**：
+路径穿越、可执行文件、压缩炸弹、体积上限。分两份实现迟早会漂移——
+要么客户端误杀正常包，要么服务端放过恶意包。
+
+审核动作全部写入 `audit_log`；驳回必须填原因，否则作者不知道改什么。
+`PPL_ADMIN_EMAIL` 指定的邮箱登录即自动获得审核权限。
 
 ### 本地运行
 

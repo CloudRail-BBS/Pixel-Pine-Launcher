@@ -34,7 +34,24 @@ services:
       # 容器内固定 8080，宿主机端口由 ports 映射决定
       PPL_PORT: "8080"
       PPL_DB_MAX_CONN: "8"
+      # 资源包存卷里，容器重建不丢内容
+      PPL_STORAGE_DIR: /data/packages
+      PPL_PUBLIC_BASE: ${PPL_PUBLIC_BASE:-http://localhost:8080}
+      PPL_JWT_SECRET: ${PPL_JWT_SECRET:-}
+      PPL_JWT_TTL_HOURS: ${PPL_JWT_TTL_HOURS:-168}
+      PPL_ADMIN_EMAIL: ${PPL_ADMIN_EMAIL:-}
+      PPL_SMTP_HOST: ${PPL_SMTP_HOST:-}
+      PPL_SMTP_PORT: ${PPL_SMTP_PORT:-465}
+      PPL_SMTP_USER: ${PPL_SMTP_USER:-}
+      PPL_SMTP_PASS: ${PPL_SMTP_PASS:-}
+      PPL_SMTP_FROM: "${PPL_SMTP_FROM:-PPL 市场 <noreply@pixelpine.org>}"
+      PPL_GEETEST_ID: ${PPL_GEETEST_ID:-}
+      PPL_GEETEST_KEY: ${PPL_GEETEST_KEY:-}
+      # 生产必须为 0
+      PPL_DEV_MODE: ${PPL_DEV_MODE:-0}
       RUST_LOG: ${RUST_LOG:-info,tower_http=warn}
+    volumes:
+      - ppl-files:/data/packages
     ports:
       - "${PPL_PORT:-8080}:8080"
     healthcheck:
@@ -51,3 +68,4 @@ services:
 
 volumes:
   ppl-db:
+  ppl-files:

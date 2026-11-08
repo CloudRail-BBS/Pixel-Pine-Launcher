@@ -109,7 +109,7 @@ pub async fn list(
         LEFT JOIN LATERAL (
             SELECT version, size, content_hash, urls
             FROM versions
-            WHERE versions.package_id = p.id
+            WHERE versions.package_id = p.id AND versions.status = 'approved'
             ORDER BY created_at DESC
             LIMIT 1
         ) v ON TRUE
@@ -159,7 +159,7 @@ pub async fn detail(
         LEFT JOIN LATERAL (
             SELECT version, size, content_hash, urls
             FROM versions
-            WHERE versions.package_id = p.id
+            WHERE versions.package_id = p.id AND versions.status = 'approved'
             ORDER BY created_at DESC
             LIMIT 1
         ) v ON TRUE
@@ -184,7 +184,7 @@ pub async fn detail(
         SELECT v.version, v.size, v.content_hash, v.urls, v.changelog
         FROM versions v
         JOIN packages p ON p.id = v.package_id
-        WHERE p.id::text = $1 OR p.slug = $1
+        WHERE (p.id::text = $1 OR p.slug = $1) AND v.status = 'approved'
         ORDER BY v.created_at DESC
         "#,
     )
@@ -208,6 +208,62 @@ pub async fn detail(
             )
             .collect(),
     }))
+}
+
+/// `POST /v1/packages/{id}/report`。公开入口，不需要登录——
+/// 举报门槛越高，坏内容活得越久。
+#[derive(Debug, Deserialize)]
+pub struct ReportBody {
+    pub reason: String,
+    #[serde(default)]
+    pub contact: String,
+}
+
+pub async fn report(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<ReportBody>,
+) -> Result<Json<serde_json::Value>, Response> {
+    let reason = body.reason.trim();
+    if reason.chars().count() < 4 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "请说明具体问题，至少 4 个字" })),
+        )
+            .into_response());
+    }
+    if reason.chars().count() > 500 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "说明不要超过 500 个字" })),
+        )
+            .into_response());
+    }
+
+    let found: Option<(uuid::Uuid,)> =
+        sqlx::query_as("SELECT id FROM packages WHERE id::text = $1 OR slug = $1")
+            .bind(&id)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(db_unavailable)?;
+
+    let Some((package_id,)) = found else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "没有这个资源" })),
+        )
+            .into_response());
+    };
+
+    sqlx::query("INSERT INTO reports (package_id, reason, contact) VALUES ($1, $2, $3)")
+        .bind(package_id)
+        .bind(reason)
+        .bind(body.contact.trim())
+        .execute(&state.pool)
+        .await
+        .map_err(db_unavailable)?;
+
+    Ok(Json(json!({ "ok": true })))
 }
 
 fn to_item(row: Row) -> PackageItem {
