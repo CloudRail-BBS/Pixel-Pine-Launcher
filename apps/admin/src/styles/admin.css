@@ -631,3 +631,46 @@ textarea {
   line-height: 1.7;
   color: var(--text-3);
 }
+
+/* ---------- 公告表单 ---------- */
+
+.announce-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  max-width: 620px;
+}
+
+.announce-form label {
+  display: block;
+}
+
+.announce-textarea {
+  height: auto;
+  min-height: 120px;
+  padding: 10px 12px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.announce-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.announce-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 9px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.announce-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { AnnouncementBar } from "../components/AnnouncementBar";
 import { PixelCover } from "../components/PixelCover";
 import { PineMark, PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
@@ -50,6 +51,8 @@ export function LibraryPage({
             <p className="page-desc">还没找到《铁锈战争》，下载一份或者指给我你已经装在哪</p>
           </div>
         </header>
+
+        <AnnouncementBar />
 
         <div className="gate">
           <div className="gate-icon" aria-hidden="true">
@@ -120,6 +123,8 @@ export function LibraryPage({
           </button>
         </div>
       </header>
+
+      <AnnouncementBar />
 
       <section className="section">
         <div className="section-title">游戏实例</div>

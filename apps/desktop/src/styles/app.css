@@ -4,7 +4,12 @@
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
+  /* 必须显式给行高：只写 height:100% 时，行是 auto 的，
+     而网格项的 min-height:auto 会按内容撑高，整页就被撑出视口。
+     body 是 overflow:hidden，于是「滚不动、侧栏底部被切掉」同时出现。 */
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
+  overflow: hidden;
   position: relative;
   z-index: 1;
 }
@@ -43,6 +48,10 @@
   border-right: 1px solid var(--line);
   /* 上边缘高光：玻璃与「半透明色块」的分界线 */
   box-shadow: inset 0 1px 0 var(--glass-hi);
+  /* 窗口很矮时让侧栏自己滚，不能把底部的「设置」挤出可视区 */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   position: relative;
 }
 
@@ -181,14 +190,19 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* 同上：不给 0 的话，弹性子项的最小高度按内容算，永远撑得比视口高 */
+  min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
 .main-scroll {
   overflow-y: auto;
+  overscroll-behavior: contain;
   /* 顶部内边距交给吸顶条自己，否则滚动时会出现一条空白缝 */
   padding: 0 30px 90px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 页面头做成吸顶玻璃条：内容从它下面滚过去，模糊才有东西可折射。
@@ -2105,4 +2119,114 @@
   display: flex;
   gap: 8px;
   margin-top: 4px;
+}
+
+/* ---------- 公告 ---------- */
+
+.announce {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.announce-item {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+}
+
+/* 重要公告只加一条左侧色带，不做红底——首页上大片红会让人以为出事了 */
+.announce-item.important {
+  border-color: var(--accent-line);
+  box-shadow:
+    inset 2px 0 0 var(--accent),
+    inset 0 1px 0 var(--glass-hi);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.announce-tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.announce-item.important .announce-tag {
+  background: var(--accent);
+  color: var(--btn-ink);
+}
+
+.announce-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announce-date {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.announce-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+}
+
+.announce-close:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.announce-close svg {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.announce-body {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+/* 侧栏左下角的版本号 */
+.sidebar-version {
+  margin-top: 2px;
+  padding-left: 10px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* 设置页限宽：卡片铺满 2000px 的屏幕时，一行文字会长到读不下去 */
+.settings-body {
+  max-width: 880px;
 }

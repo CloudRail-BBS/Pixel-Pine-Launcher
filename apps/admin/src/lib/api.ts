@@ -255,3 +255,37 @@ export async function mountGeetest(
     });
   });
 }
+
+/* ---------- 公告 ---------- */
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  /** info | important */
+  level: string;
+  pinned: boolean;
+  published: string;
+}
+
+export function listAnnouncements(): Promise<{ items: Announcement[] }> {
+  return request("/v1/admin/announcements");
+}
+
+export function createAnnouncement(input: {
+  title: string;
+  body: string;
+  level: string;
+  pinned: boolean;
+  hours: number;
+}): Promise<{ ok: boolean; id: string }> {
+  return request("/v1/admin/announcements", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteAnnouncement(id: string): Promise<{ ok: boolean }> {
+  return request(`/v1/admin/announcements/${id}`, { method: "DELETE" });
+}

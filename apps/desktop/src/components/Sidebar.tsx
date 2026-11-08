@@ -44,6 +44,7 @@ interface SidebarProps {
   onNavigate: (page: PageId) => void;
   instance: Instance;
   extensionCount?: number;
+  version?: string;
 }
 
 export function Sidebar({
@@ -51,6 +52,7 @@ export function Sidebar({
   onNavigate,
   instance,
   extensionCount = 0,
+  version,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -100,6 +102,7 @@ export function Sidebar({
             {instance.version ? ` · ${instance.version}` : ""}
           </span>
         </div>
+        {version && <div className="sidebar-version">v{version}</div>}
       </div>
     </aside>
   );

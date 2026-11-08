@@ -228,6 +228,18 @@ POST /v1/admin/packages/{id}/reject     { "note": "必须写原因" }
 通过时：该资源所有 `pending` 版本转 `approved`，资源 `published`。
 驳回时：版本转 `rejected`，原因写入 `review_note`。
 
+### 公告
+
+```
+GET    /v1/announcements                    # 公开，只返回未过期的
+GET    /v1/admin/announcements              # 管理员，含过期
+POST   /v1/admin/announcements              # { title, body, level, pinned, hours }
+DELETE /v1/admin/announcements/{id}
+```
+
+`level` 为 `info` / `important`；`hours` 为 0 表示长期有效。
+客户端只在启动时拉一次，关掉的公告按 id 记在本地，不会再显示。
+
 ### 举报处理
 
 ```

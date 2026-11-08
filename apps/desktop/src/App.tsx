@@ -451,6 +451,7 @@ export default function App() {
           page={page}
           onNavigate={setPage}
           instance={instance ?? { id: "", name: "未添加游戏", root: "", source: "manual", version: null, activeLoadout: null }}
+          version={APP_VERSION}
         />
 
         <main className="main">

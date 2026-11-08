@@ -1,6 +1,7 @@
 //! 路由表。
 
 pub mod admin;
+pub mod announcements;
 pub mod auth;
 pub mod dist;
 pub mod health;
@@ -37,6 +38,8 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/packages", get(packages::list))
         .route("/v1/packages/{id}", get(packages::detail))
         .route("/v1/packages/{id}/report", post(packages::report))
+        // 公告：客户端首屏拉一次
+        .route("/v1/announcements", get(announcements::list))
         // 登录
         .route("/v1/auth/config", get(auth::config))
         .route("/v1/auth/email/request", post(auth::request_code))
@@ -52,6 +55,14 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/admin/packages/{id}/reject", post(admin::reject))
         .route("/v1/admin/packages/{id}/takedown", post(admin::takedown))
         .route("/v1/admin/reports", get(admin::reports))
+        .route(
+            "/v1/admin/announcements",
+            get(announcements::admin_list).post(announcements::create),
+        )
+        .route(
+            "/v1/admin/announcements/{id}",
+            axum::routing::delete(announcements::delete),
+        )
         .route("/v1/admin/reports/{id}/handle", post(admin::handle_report))
         // 分发清单：运营方放文件，服务端只读
         .route("/v1/game/index.json", get(dist::game_index))

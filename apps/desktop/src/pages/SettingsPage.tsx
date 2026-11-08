@@ -49,7 +49,8 @@ export function SettingsPage({
         </div>
       </header>
 
-      <section className="section">
+      <div className="settings-body">
+        <section className="section">
         <div className="section-title">外观</div>
         <div className="card">
           <div className="card-row" style={{ justifyContent: "space-between", gap: 20 }}>
@@ -122,7 +123,8 @@ export function SettingsPage({
             平台在收到有效通知后下架。使用本工具的风险由用户承担。
           </div>
         </div>
-      </section>
+        </section>
+      </div>
     </>
   );
 }
