@@ -10,9 +10,11 @@ pub mod upload;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
+use axum::response::IntoResponse;
 use axum::Router;
 use sqlx::PgPool;
 use std::sync::Arc;
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
@@ -91,8 +93,31 @@ pub fn router(state: AppState) -> Router {
         .nest_service("/admin/", admin)
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(TraceLayer::new_for_http())
+        // handler 里 panic 时 axum 会直接掐掉连接，反代看到的是一句
+        // 「502 Bad Gateway」——排查时会一路怀疑容器和 nginx。
+        // 在这里接住，转成 500 + 明确日志，别让进程内部的 bug 伪装成网关故障。
+        .layer(CatchPanicLayer::custom(panic_to_500))
         .layer(CorsLayer::permissive())
         .with_state(state)
+}
+
+/// panic 兜底：返回 500，并把 panic 打到日志里。
+fn panic_to_500(payload: Box<dyn std::any::Any + Send + 'static>) -> axum::response::Response {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .map(|value| (*value).to_string())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "(无描述)".to_string());
+    tracing::error!(%detail, "请求处理时 panic，已按 500 返回");
+
+    (
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        axum::Json(serde_json::json!({
+            "code": "panic",
+            "error": "服务端出错了，稍后再试",
+        })),
+    )
+        .into_response()
 }
 
 /// `/admin` → `/admin/`。

@@ -354,6 +354,34 @@ mod tests {
         }
     }
 
+    /// 签发 + 解析一轮。
+    ///
+    /// 这条路径以前会在 jsonwebtoken 找不到 CryptoProvider 时 panic，
+    /// 而它只在「密码正确」之后才走到——没有这层单测，线上表现就是
+    /// 密码对时 502、密码错时 401，看着像网关故障。
+    #[test]
+    fn issues_and_parses_token() {
+        let config = Config::from_env();
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "admin@example.com".to_string(),
+            display_name: "admin".to_string(),
+            role: "admin".to_string(),
+        };
+
+        let token = issue_token(&config, &user).expect("签发 token");
+        let data = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
+            &Validation::default(),
+        )
+        .expect("解析 token");
+
+        assert_eq!(data.claims.sub, user.id.to_string());
+        assert_eq!(data.claims.role, "admin");
+        assert!(data.claims.exp > now_ts());
+    }
+
     #[test]
     fn locks_after_repeated_failures() {
         let guard = LoginGuard::default();

@@ -9,7 +9,12 @@ edition = "2021"
 anyhow = "1.0.104"
 axum = { version = "0.8.9", features = ["multipart"] }
 hex = "0.4.3"
-jsonwebtoken = "11.1.0"
+# 11.x 的 default features 只有 use_pem，加密后端要显式选：
+# 不选就可能 panic（"Could not automatically determine the CryptoProvider"），
+# 而且它只在真正签发 token 的那一刻炸——表现成 502，极难定位。
+# 选 rust_crypto 而不是 aws_lc_rs：后者要走 C 工具链（cmake/clang），
+# 现有的 rust:1-slim 构建镜像里没有。
+jsonwebtoken = { version = "11.1.0", features = ["rust_crypto"] }
 hmac = "0.13.0"
 lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
 rand = "0.10.3"
@@ -19,7 +24,7 @@ serde_json = "1.0.154"
 sha2 = "0.11.1"
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "migrate", "macros", "uuid"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal"] }
-tower-http = { version = "0.7.1", features = ["cors", "trace", "fs"] }
+tower-http = { version = "0.7.1", features = ["cors", "trace", "fs", "catch-panic"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.29.1", features = ["v4", "serde"] }
