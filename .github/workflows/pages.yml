@@ -1,0 +1,42 @@
+name: Site
+
+# 官网是纯静态页，没有构建步骤：直接把 site/ 作为 artifact 发到 GitHub Pages。
+# 首次使用前要在仓库 Settings → Pages 把 Source 选成「GitHub Actions」，
+# 否则这里的部署会失败（但不影响其他工作流）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 只保留最新一次部署：连着改几版时没必要排队发中间态
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: 发布官网
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

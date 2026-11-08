@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pixel-Pine-Launcher · 铁锈战争作战终端</title>
+    <meta
+      name="description"
+      content="Pixel-Pine-Launcher 是《铁锈战争》的第三方启动器：用「作战预设」管理 Mod 组合，切换零拷贝；内置多源资源市场、地图库与联机房间列表，支持 Windows / Linux / macOS。"
+    />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pixel-Pine-Launcher · 铁锈战争作战终端" />
+    <meta
+      property="og:description"
+      content="把实例、Mod、地图、联机与资源市场收进一个窗口。切换一套玩法，只需要一次点击。"
+    />
+    <meta property="og:image" content="./assets/logo-512.png" />
+    <link rel="icon" href="./assets/logo.png" />
+    <script>
+      // 先打标记再上样式：脚本没跑起来时内容必须可见，
+      // 不能让「滚动进场」把正文永久藏起来
+      document.documentElement.classList.add("js");
+    </script>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+
+    <header class="nav" data-nav>
+      <div class="nav-inner">
+        <a class="brand" href="#top">
+          <img class="brand-mark" src="./assets/logo.png" alt="" width="28" height="28" />
+          <span class="brand-text">Pixel&nbsp;Pine</span>
+        </a>
+
+        <nav class="nav-links" aria-label="页面导航">
+          <a href="#loadout">预设</a>
+          <a href="#market">市场</a>
+          <a href="#platforms">平台</a>
+          <a href="#extensions">扩展</a>
+          <a href="#download">下载</a>
+        </nav>
+
+        <a class="btn btn-sm" href="#download">获取启动器</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ── 首屏 ─────────────────────────────────────────────── -->
+      <section class="hero" id="top">
+        <div class="hero-glow" aria-hidden="true"></div>
+
+        <div class="hero-inner">
+          <p class="eyebrow">
+            <span class="dot" aria-hidden="true"></span>铁锈战争 · 第三方作战终端
+          </p>
+
+          <h1 class="hero-title">
+            把战场<br />
+            收进一个窗口
+          </h1>
+
+          <p class="hero-sub">
+            实例、Mod、地图、联机、资源市场——不必再满硬盘找文件。切换一套玩法，只需要一次点击。
+          </p>
+
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#download" data-primary-cta>下载启动器</a>
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher"
+              target="_blank"
+              rel="noreferrer"
+              >在 GitHub 查看</a
+            >
+          </div>
+
+          <p class="hero-meta" data-version-line>预览版 v0.1.2 · Windows / Linux / macOS</p>
+        </div>
+
+        <!-- 界面示意：用 DOM 画，不依赖截图，浅色/深色与真机一致 -->
+        <div class="mock" role="img" aria-label="启动器库页面的界面示意">
+          <div class="mock-bar" aria-hidden="true">
+            <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+            <em class="mock-title">Pixel-Pine-Launcher</em>
+          </div>
+
+          <div class="mock-body" aria-hidden="true">
+            <aside class="mock-side">
+              <div class="mock-side-item is-active">库</div>
+              <div class="mock-side-item">市场</div>
+              <div class="mock-side-item">扩展</div>
+              <div class="mock-side-item">地图</div>
+              <div class="mock-side-item">联机</div>
+              <div class="mock-side-item">发布</div>
+              <div class="mock-side-item">设置</div>
+              <div class="mock-side-foot">
+                <span class="mock-pill">v0.1.2</span>
+              </div>
+            </aside>
+
+            <div class="mock-main">
+              <div class="mock-head">
+                <div>
+                  <div class="mock-h1">库</div>
+                  <div class="mock-h2">Steam · Rusted Warfare 1.15</div>
+                </div>
+                <span class="mock-chip">已挂载：现代战争</span>
+              </div>
+
+              <div class="mock-grid">
+                <div class="mock-card">
+                  <span class="mock-card-kind">Mod</span>
+                  <span class="mock-card-name">现代战争</span>
+                  <span class="mock-card-meta">2.3.1 · 128 个单位</span>
+                </div>
+                <div class="mock-card">
+                  <span class="mock-card-kind">Mod</span>
+                  <span class="mock-card-name">星际远征</span>
+                  <span class="mock-card-meta">1.7.0 · 64 个单位</span>
+                </div>
+                <div class="mock-card">
+                  <span class="mock-card-kind">地图</span>
+                  <span class="mock-card-name">双子峡谷</span>
+                  <span class="mock-card-meta">512 × 512</span>
+                </div>
+                <div class="mock-card mock-card--ghost">
+                  <span class="mock-card-name">+ 拖入 .rwmod</span>
+                  <span class="mock-card-meta">自动校验后再落盘</span>
+                </div>
+              </div>
+
+              <div class="mock-toast">
+                <span class="mock-toast-dot"></span>
+                预设已切换 · 用时 8 ms
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 一句话定位 ───────────────────────────────────────── -->
+      <section class="points reveal">
+        <div class="points-grid">
+          <div class="point">
+            <h3>零拷贝</h3>
+            <p>切换预设只重建一次链接，不动任何 Mod 文件。</p>
+          </div>
+          <div class="point">
+            <h3>不污染游戏目录</h3>
+            <p>真实数据在自己的存储区，游戏目录里只有一个链接。</p>
+          </div>
+          <div class="point">
+            <h3>三个平台</h3>
+            <p>三平台安装包，同一套自动更新通道。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 01 预设 ──────────────────────────────────────────── -->
+      <section class="feature reveal" id="loadout">
+        <div class="feature-text">
+          <p class="label"><span>01</span> Loadout</p>
+          <h2>一套玩法，一个预设</h2>
+          <p class="feature-body">
+            游戏只认一个 <code>mods/units</code> 目录，所有 Mod 混在一起，换个玩法就得手动搬文件。PPL 把它换成一个链接：切换预设 = 重建一次链接，零拷贝、毫秒级。
+          </p>
+          <ul class="ticks">
+            <li>同一个 Mod 的多个版本可以共存，各自挂在不同的预设里</li>
+            <li>冲突检测按单位目录求交集，装之前就告诉你谁会覆盖谁</li>
+            <li>禁用只是改一个标记，不碰磁盘上的任何文件</li>
+          </ul>
+        </div>
+
+        <div class="feature-visual">
+          <div class="panel">
+            <div class="panel-head">
+              <span>作战预设</span>
+              <span class="panel-tag">3 套</span>
+            </div>
+            <ul class="preset-list">
+              <li class="preset is-active">
+                <span class="preset-radio" aria-hidden="true"></span>
+                <span class="preset-name">现代战争</span>
+                <span class="preset-meta">12 个 Mod · 已挂载</span>
+              </li>
+              <li class="preset">
+                <span class="preset-radio" aria-hidden="true"></span>
+                <span class="preset-name">星际远征</span>
+                <span class="preset-meta">8 个 Mod · 2 个冲突</span>
+              </li>
+              <li class="preset">
+                <span class="preset-radio" aria-hidden="true"></span>
+                <span class="preset-name">原版</span>
+                <span class="preset-meta">0 个 Mod</span>
+              </li>
+            </ul>
+            <div class="panel-foot">
+              <code>mods/units → ~/.local/share/pixelpine/loadouts/modern-war</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 02 市场 ──────────────────────────────────────────── -->
+      <section class="feature feature--flip reveal" id="market">
+        <div class="feature-text">
+          <p class="label"><span>02</span> Market</p>
+          <h2>找 Mod 不用再翻压缩包</h2>
+          <p class="feature-body">
+            内置资源市场，支持接入多个数据源。搜索、详情、版本历史、举报都在同一个界面里；上传要过邮箱验证与人工审核，装完立刻出现在库页的状态里。
+          </p>
+          <ul class="ticks">
+            <li>多市场源：默认官方源，也能填任意兼容的第三方地址</li>
+            <li>安装前做安全校验：路径穿越、可执行文件、压缩炸弹</li>
+            <li>升级会清掉旧版本文件，卸载不留残渣</li>
+          </ul>
+        </div>
+
+        <div class="feature-visual">
+          <div class="panel">
+            <div class="panel-head">
+              <span>资源市场</span>
+              <span class="panel-tag">已审核</span>
+            </div>
+            <div class="search-row">
+              <span class="search-box">搜索 Mod、地图、作者</span>
+              <span class="search-filter">最新</span>
+            </div>
+            <div class="market-grid">
+              <div class="market-card">
+                <span class="market-name">现代战争</span>
+                <span class="market-desc">陆海空三军体系，128 个新单位</span>
+                <span class="market-foot"><em>v2.3.1</em><i>4.6 MB</i></span>
+              </div>
+              <div class="market-card">
+                <span class="market-name">星际远征</span>
+                <span class="market-desc">轨道空降与轨道炮，科幻向</span>
+                <span class="market-foot"><em>v1.7.0</em><i>2.1 MB</i></span>
+              </div>
+              <div class="market-card">
+                <span class="market-name">平衡补丁</span>
+                <span class="market-desc">只调数值，不改模型</span>
+                <span class="market-foot"><em>v0.9.4</em><i>36 KB</i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 03 平台 ──────────────────────────────────────────── -->
+      <section class="feature reveal" id="platforms">
+        <div class="feature-text">
+          <p class="label"><span>03</span> Cross-platform</p>
+          <h2>三个平台，同一套体验</h2>
+          <p class="feature-body">
+            安装包同时出 Windows、Linux、macOS。预设挂载在各自平台上用最合适的方式实现：Windows 用 NTFS 目录联接，不需要管理员权限；macOS 与 Linux 用符号链接。
+          </p>
+          <ul class="ticks">
+            <li>macOS 认 <code>.app</code> 包，自动找到包内真正的可执行文件</li>
+            <li>Linux 认没有扩展名的原生二进制，也能识别 Steam 库</li>
+            <li>自动更新用同一份签名清单，三个平台各自取自己的那一条</li>
+          </ul>
+        </div>
+
+        <div class="feature-visual">
+          <div class="panel">
+            <div class="panel-head">
+              <span>运行平台</span>
+              <span class="panel-tag" data-detect-tag>已识别当前系统</span>
+            </div>
+            <ul class="platform-list">
+              <li class="platform" data-platform="windows">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="platform-icon">
+                  <path d="M3 5.6l7.4-1v7.1H3zM11.6 4.5L21 3v8.7h-9.4zM3 12.9h7.4v7.1L3 19zM11.6 12.9H21V21l-9.4-1.3z" />
+                </svg>
+                <span class="platform-name">Windows</span>
+                <span class="platform-meta">x64 · NSIS 安装包</span>
+              </li>
+              <li class="platform" data-platform="linux">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="platform-icon">
+                  <path d="M12 2c-2.2 0-3.4 1.8-3.4 4.2 0 1.6-.5 2.5-1.4 3.9C6 12.1 5.2 13.7 5.2 15.4c0 .9-.4 1.3-1 2.1-.5.7-.2 1.6.6 1.8 1.4.4 2.6.4 3.6 1 .9.5 1.9.7 3.6.7s2.7-.2 3.6-.7c1-.6 2.2-.6 3.6-1 .8-.2 1.1-1.1.6-1.8-.6-.8-1-1.2-1-2.1 0-1.7-.8-3.3-2-5.3-.9-1.4-1.4-2.3-1.4-3.9C15.4 3.8 14.2 2 12 2z" />
+                </svg>
+                <span class="platform-name">Linux</span>
+                <span class="platform-meta">x64 · AppImage / deb</span>
+              </li>
+              <li class="platform" data-platform="macos">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="platform-icon">
+                  <path d="M16.4 12.8c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.5-.4 6.1 1 8.1.7 1 1.5 2.1 2.5 2 1-.1 1.4-.6 2.6-.6s1.6.6 2.6.6c1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.2-.9-2.2-3.1zM14.3 6.3c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.5-1.2z" />
+                </svg>
+                <span class="platform-name">macOS</span>
+                <span class="platform-meta">arm64 / x64 · dmg</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 04 扩展 ──────────────────────────────────────────── -->
+      <section class="feature feature--flip reveal" id="extensions">
+        <div class="feature-text">
+          <p class="label"><span>04</span> Extensions</p>
+          <h2>扩展归你管</h2>
+          <p class="feature-body">
+            自己的一套扩展规范：<code>ppl-extension.json</code> 描述依赖与加载顺序，加载器按拓扑排序决定谁先谁后，成环的整组跳过而不是随机崩。
+          </p>
+          <ul class="ticks">
+            <li>依赖是硬边，加载顺序是软边，冲突时不会互相顶掉</li>
+            <li>能只读识别社区 RWML 扩展包，默认不加载，开关在你手上</li>
+            <li>停用的扩展移进 <code>.disabled/</code>，随时能改回来</li>
+          </ul>
+        </div>
+
+        <div class="feature-visual">
+          <div class="panel">
+            <div class="panel-head">
+              <span>扩展</span>
+              <span class="panel-tag">PPL / RWML</span>
+            </div>
+            <ul class="ext-list">
+              <li class="ext">
+                <span class="ext-name">战役扩展包<em>PPL</em></span>
+                <span class="switch is-on" aria-hidden="true"></span>
+              </li>
+              <li class="ext">
+                <span class="ext-name">统计面板<em>PPL</em></span>
+                <span class="switch is-on" aria-hidden="true"></span>
+              </li>
+              <li class="ext">
+                <span class="ext-name">旧版兼容层<em>RWML</em></span>
+                <span class="switch" aria-hidden="true"></span>
+              </li>
+              <li class="ext">
+                <span class="ext-name">快捷键重绑<em>PPL</em></span>
+                <span class="switch is-on" aria-hidden="true"></span>
+              </li>
+            </ul>
+            <div class="panel-foot">加载顺序：战役扩展包 → 快捷键重绑 → 统计面板</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 下载 ─────────────────────────────────────────────── -->
+      <section class="download reveal" id="download">
+        <div class="download-inner">
+          <p class="label"><span>05</span> Download</p>
+          <h2>下载 Pixel-Pine-Launcher</h2>
+          <p class="download-sub">
+            预览版：功能可用，但请当作测试版看待。安装包由 CI 在打版本标签时构建，三平台共用同一份更新签名。
+          </p>
+
+          <div class="dl-grid">
+            <article class="dl-card" data-dl="windows">
+              <div class="dl-head">
+                <span class="dl-name">Windows</span>
+                <span class="dl-arch">x64</span>
+              </div>
+              <p class="dl-note">NSIS 安装包，装到当前用户目录，不需要管理员权限。</p>
+              <a class="btn btn-block" data-dl-link href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases" target="_blank" rel="noreferrer">
+                下载 .exe
+              </a>
+            </article>
+
+            <article class="dl-card" data-dl="macos">
+              <div class="dl-head">
+                <span class="dl-name">macOS</span>
+                <span class="dl-arch">arm64 / x64</span>
+              </div>
+              <p class="dl-note">未做代码签名，首次打开请右键「打开」绕过 Gatekeeper。</p>
+              <a class="btn btn-block" data-dl-link href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases" target="_blank" rel="noreferrer">
+                下载 .dmg
+              </a>
+            </article>
+
+            <article class="dl-card" data-dl="linux">
+              <div class="dl-head">
+                <span class="dl-name">Linux</span>
+                <span class="dl-arch">x64</span>
+              </div>
+              <p class="dl-note">AppImage 免安装，或选 deb（需要 glibc 2.35+）。</p>
+              <a class="btn btn-block" data-dl-link href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases" target="_blank" rel="noreferrer">
+                下载 AppImage
+              </a>
+            </article>
+          </div>
+
+          <p class="dl-foot">
+            也可以到 <a href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases" target="_blank" rel="noreferrer">全部版本</a> 里挑，或在 <a href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher" target="_blank" rel="noreferrer">源码仓库</a> 自己编译。
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 免责声明 ─────────────────────────────────────────── -->
+      <section class="disclaimer">
+        <div class="disclaimer-inner">
+          <h2>关于版权</h2>
+          <p>
+            《铁锈战争》（Rusted Warfare）版权归 Corroding Games 所有。PPL 是第三方启动器，<strong>不包含游戏本体</strong>，也不分发未获授权的游戏文件；需要自备正版游戏，或通过官方商店购买。
+          </p>
+          <p>
+            资源市场的内容由用户上传、运营方审核。若你认为某条内容侵犯了你的权益，可以在客户端里直接举报，或通过仓库的 Issue 联系我们。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <img src="./assets/logo.png" alt="" width="24" height="24" />
+          <span>Pixel-Pine-Launcher</span>
+        </div>
+        <nav class="footer-links" aria-label="页脚导航">
+          <a href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher" target="_blank" rel="noreferrer">源码</a>
+          <a href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/tree/main/docs" target="_blank" rel="noreferrer">文档</a>
+          <a href="https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases" target="_blank" rel="noreferrer">版本</a>
+          <a href="#top">回到顶部</a>
+        </nav>
+        <p class="footer-copy">© 2026 CloudRail BBS · 以 MIT 许可开源</p>
+      </div>
+    </footer>
+
+    <script src="./assets/app.js" defer></script>
+  </body>
+</html>
