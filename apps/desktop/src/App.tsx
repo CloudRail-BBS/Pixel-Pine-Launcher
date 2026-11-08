@@ -17,6 +17,7 @@ import {
 import { LibraryPage } from "./pages/LibraryPage";
 import { MapsPage } from "./pages/MapsPage";
 import { MarketPage } from "./pages/MarketPage";
+import { NetPage } from "./pages/NetPage";
 import { PublishPage } from "./pages/PublishPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -448,7 +449,7 @@ export default function App() {
                 onRefresh={() => void loadMaps()}
               />
             )}
-            {page === "net" && <PlaceholderPage title="联机" description="CNKD 房间列表与直连地址簿" />}
+            {page === "net" && <NetPage />}
             {page === "publish" && <PublishPage />}
             {page === "settings" && (
               <SettingsPage

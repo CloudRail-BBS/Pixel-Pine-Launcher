@@ -1300,3 +1300,77 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- 联机 ---------- */
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+}
+
+.room-id {
+  flex: none;
+  min-width: 76px;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+
+.room-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.room-people {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.room-meta {
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.room-map {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+@media (max-width: 720px) {
+  .room-row {
+    flex-wrap: wrap;
+  }
+
+  .room-map {
+    max-width: 160px;
+  }
+}

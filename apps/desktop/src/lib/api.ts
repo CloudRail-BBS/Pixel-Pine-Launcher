@@ -6,7 +6,14 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import * as mock from "./mock";
-import type { GameMap, ImportedPackage, Instance, Loadout, LocalMod } from "./types";
+import type {
+  GameMap,
+  ImportedPackage,
+  Instance,
+  Loadout,
+  LocalMod,
+  RelaySnapshot,
+} from "./types";
 
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -154,4 +161,29 @@ export async function probeDirectory(path: string): Promise<Probe> {
 
 export async function createLoadout(id: string, name: string): Promise<Loadout> {
   return invoke<Loadout>("create_loadout", { id, name });
+}
+
+/** 联机房间列表。
+ *
+ * Tauri 里走 Rust 侧请求：中继是明文 HTTP，webview 会以混合内容为由拦掉。
+ * 浏览器预览里 dev server 本身就是 http，可以直接 fetch。 */
+export async function fetchRelayRooms(url: string): Promise<RelaySnapshot> {
+  const parse = (body: unknown): RelaySnapshot => {
+    const data = (body as { data?: { nodeName?: string; roomCount?: number; rooms?: RelaySnapshot["rooms"] } })
+      ?.data;
+    if (!data) throw new Error("联机服务返回的数据里没有房间信息");
+    return {
+      nodeName: data.nodeName ?? "未知节点",
+      roomCount: data.roomCount ?? data.rooms?.length ?? 0,
+      rooms: Array.isArray(data.rooms) ? data.rooms : [],
+    };
+  };
+
+  if (isTauri()) {
+    return parse(await invoke<unknown>("fetch_relay_rooms", { url }));
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`联机服务返回 ${response.status}`);
+  return parse(await response.json());
 }

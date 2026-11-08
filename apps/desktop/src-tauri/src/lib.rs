@@ -349,6 +349,43 @@ fn attach_after_import(
     }
 }
 
+/// 拉取联机中继的房间列表。
+///
+/// 必须走 Rust 侧：中继是明文 HTTP，在 webview 里会被混合内容策略直接拦掉，
+/// 连错误信息都拿不到。返回原始 JSON，由前端按 `data.rooms` 取。
+#[tauri::command]
+async fn fetch_relay_rooms(url: String) -> Result<serde_json::Value, String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("联机地址不是 http(s)".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .user_agent(concat!("PixelPineLauncher/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("初始化请求失败：{error}"))?;
+
+    let response = client.get(&url).send().await.map_err(|error| {
+        if error.is_timeout() {
+            "联机服务响应超时，稍后重试".to_string()
+        } else if error.is_connect() {
+            "连不上联机服务".to_string()
+        } else {
+            format!("请求联机服务失败：{error}")
+        }
+    })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("联机服务返回 {}", status.as_u16()));
+    }
+
+    response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("解析房间数据失败：{error}"))
+}
+
 #[tauri::command]
 fn set_mod_enabled(root: String, name: String, enabled: bool) -> Result<(), String> {
     ppl_core::set_mod_enabled(&units_dir(&root), &name, enabled).map_err(fail)
@@ -391,6 +428,7 @@ pub fn run() {
             scan_maps,
             import_package,
             install_from_url,
+            fetch_relay_rooms,
             set_mod_enabled,
             attach_loadout,
             link_status,

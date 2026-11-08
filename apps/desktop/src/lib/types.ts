@@ -86,3 +86,24 @@ export interface MarketPageResult {
   pageSize: number;
   total: number;
 }
+
+/** 联机中继的一个房间（CNKD / RW-HPS）。 */
+export interface RelayRoom {
+  displayId: string;
+  /** battleroom = 等待中，ingame = 已开局 */
+  status: string;
+  /** 房间容量 */
+  playerSize: number;
+  /** 当前在线人数 */
+  activeConnectionSize: number;
+  hostName: string;
+  mapName: string;
+  isMod: boolean;
+  joinLink: string;
+}
+
+export interface RelaySnapshot {
+  nodeName: string;
+  roomCount: number;
+  rooms: RelayRoom[];
+}
