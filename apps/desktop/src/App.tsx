@@ -41,6 +41,7 @@ export default function App() {
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [marketLoaded, setMarketLoaded] = useState(false);
+  const [installingId, setInstallingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [task, setTask] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -167,6 +168,7 @@ export default function App() {
       }
 
       setTask(`正在下载《${item.title}》…`);
+      setInstallingId(item.id);
       try {
         const result = await api.installFromUrl(
           instance.root,
@@ -175,7 +177,13 @@ export default function App() {
           item.slug,
           item.version,
         );
-        // 重新读预设：安装状态由清单驱动，装完立刻变成「已安装」
+
+        // 先就地改状态：列表立刻从「安装」变「已安装」，不用等重新取数。
+        // 之后 listLoadouts 成功会重算一次，结果一致；失败也能保住这个乐观值。
+        setMarket((current) =>
+          current.map((row) => (row.id === item.id ? { ...row, state: "installed" } : row)),
+        );
+
         try {
           setLoadouts(await api.listLoadouts());
         } catch {
@@ -190,6 +198,7 @@ export default function App() {
       } catch (error) {
         notify(String(error));
       } finally {
+        setInstallingId(null);
         setTask(null);
       }
     },
@@ -435,6 +444,7 @@ export default function App() {
                 error={marketError}
                 onRetry={() => void loadMarket()}
                 onInstall={(item) => void installFromMarket(item)}
+                installingId={installingId}
               />
             )}
 

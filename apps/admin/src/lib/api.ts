@@ -27,6 +27,18 @@ export interface QueueItem {
   submitted: string;
 }
 
+export interface ReportItem {
+  id: number;
+  reason: string;
+  contact: string;
+  created: string;
+  packageId: string;
+  slug: string;
+  title: string;
+  kind: string;
+  packageStatus: string;
+}
+
 export interface AuthConfig {
   geetestId: string | null;
   devMode: boolean;
@@ -161,6 +173,31 @@ export function approve(id: string): Promise<{ ok: boolean }> {
 
 export function reject(id: string, note: string): Promise<{ ok: boolean }> {
   return request(`/v1/admin/packages/${id}/reject`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function reports(): Promise<{ items: ReportItem[] }> {
+  return request("/v1/admin/reports");
+}
+
+export function handleReport(
+  id: number,
+  action: "dismissed" | "handled",
+  note = "",
+): Promise<{ ok: boolean }> {
+  return request(`/v1/admin/reports/${id}/handle`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action, note }),
+  });
+}
+
+/** 下架：资源转 takendown，已过审版本一并 rejected，市场里立刻消失。 */
+export function takedown(packageId: string, note: string): Promise<{ ok: boolean }> {
+  return request(`/v1/admin/packages/${packageId}/takedown`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ note }),

@@ -23,6 +23,8 @@ interface MarketPageProps {
   error: string | null;
   onRetry: () => void;
   onInstall: (item: MarketPackage) => void;
+  /** 正在安装的资源 id，用来把按钮换成进度态并挡住重复点击 */
+  installingId: string | null;
 }
 
 export function MarketPage({
@@ -32,6 +34,7 @@ export function MarketPage({
   error,
   onRetry,
   onInstall,
+  installingId,
 }: MarketPageProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -60,7 +63,12 @@ export function MarketPage({
 
   if (opened) {
     return (
-      <DetailView item={opened} onBack={() => setOpenId(null)} onInstall={() => onInstall(opened)} />
+      <DetailView
+        item={opened}
+        installing={installingId === opened.id}
+        onBack={() => setOpenId(null)}
+        onInstall={() => onInstall(opened)}
+      />
     );
   }
 
@@ -172,7 +180,11 @@ export function MarketPage({
                   <div className="pkg-stat">
                     <span>{formatBytes(item.size)}</span>
                   </div>
-                  <ActionButton state={item.state} onClick={() => onInstall(item)} />
+                  <ActionButton
+                    state={item.state}
+                    installing={installingId === item.id}
+                    onClick={() => onInstall(item)}
+                  />
                 </div>
               </div>
             </article>
@@ -186,10 +198,12 @@ export function MarketPage({
 /** 详情：本体信息 + 版本历史 + 举报。 */
 function DetailView({
   item,
+  installing,
   onBack,
   onInstall,
 }: {
   item: MarketPackage;
+  installing: boolean;
   onBack: () => void;
   onInstall: () => void;
 }) {
@@ -238,7 +252,7 @@ function DetailView({
           </div>
         </div>
         <div className="head-actions">
-          <ActionButton state={item.state} onClick={onInstall} />
+          <ActionButton state={item.state} installing={installing} onClick={onInstall} />
         </div>
       </header>
 
@@ -321,9 +335,11 @@ function MarketCover({ item }: { item: MarketPackage }) {
 
 function ActionButton({
   state,
+  installing = false,
   onClick,
 }: {
   state: MarketPackage["state"];
+  installing?: boolean;
   onClick: () => void;
 }) {
   const handle = (event: React.MouseEvent) => {
@@ -332,6 +348,13 @@ function ActionButton({
     onClick();
   };
 
+  if (installing) {
+    return (
+      <button className="btn btn-sm" disabled>
+        安装中…
+      </button>
+    );
+  }
   if (state === "installed") {
     return (
       <button className="btn btn-sm btn-ghost" disabled>

@@ -228,6 +228,20 @@ POST /v1/admin/packages/{id}/reject     { "note": "必须写原因" }
 通过时：该资源所有 `pending` 版本转 `approved`，资源 `published`。
 驳回时：版本转 `rejected`，原因写入 `review_note`。
 
+### 举报处理
+
+```
+GET  /v1/admin/reports?status=open
+POST /v1/admin/reports/{id}/handle        { "action": "handled" | "dismissed", "note": "可选" }
+POST /v1/admin/packages/{id}/takedown     { "note": "必须写" }
+```
+
+举报只记录不自动下架：`handled` / `dismissed` 关闭这条举报，
+真正让资源消失要用 `takedown`——它把资源状态转 `takendown`，
+已过审版本一并转 `rejected`，公开列表立刻查不到。
+
+下架必须写原因，作者申诉时这是唯一依据。
+
 每个审核动作都写 `audit_log`——谁、什么时候、对哪条、做了什么。
 
 ---

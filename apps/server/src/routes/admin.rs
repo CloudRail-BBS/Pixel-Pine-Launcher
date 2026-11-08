@@ -167,3 +167,156 @@ pub async fn reject(
 
     Ok(Json(json!({ "ok": true, "status": "rejected" })))
 }
+
+#[derive(Debug, sqlx::FromRow)]
+struct ReportRow {
+    id: i64,
+    reason: String,
+    contact: String,
+    created: String,
+    package_id: Uuid,
+    slug: String,
+    title: String,
+    kind: String,
+    package_status: String,
+}
+
+/// 待处理举报。
+pub async fn reports(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> Result<Json<Value>, ApiError> {
+    user.require_admin()?;
+
+    let rows: Vec<ReportRow> = sqlx::query_as(
+        "SELECT r.id, r.reason, r.contact,
+                to_char(r.created_at, 'YYYY-MM-DD HH24:MI') AS created,
+                p.id AS package_id, p.slug, p.title, p.kind, p.status AS package_status
+         FROM reports r
+         JOIN packages p ON p.id = r.package_id
+         WHERE r.status = 'open'
+         ORDER BY r.created_at DESC
+         LIMIT 200",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+
+    Ok(Json(json!({
+        "items": rows.iter().map(|row| json!({
+            "id": row.id,
+            "reason": row.reason,
+            "contact": row.contact,
+            "created": row.created,
+            "packageId": row.package_id,
+            "slug": row.slug,
+            "title": row.title,
+            "kind": row.kind,
+            "packageStatus": row.package_status,
+        })).collect::<Vec<_>>()
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HandleBody {
+    /// `dismissed` 忽略，`handled` 已处理（通常伴随下架）
+    pub action: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// 处理一条举报。只改举报状态，不动资源——下架是另一个动作。
+pub async fn handle_report(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+    Json(body): Json<HandleBody>,
+) -> Result<Json<Value>, ApiError> {
+    user.require_admin()?;
+
+    let action = body.action.trim();
+    if action != "dismissed" && action != "handled" {
+        return Err(ApiError::bad_request("action 只能是 dismissed 或 handled"));
+    }
+
+    let updated = sqlx::query(
+        "UPDATE reports SET status = $2, handled_at = now() WHERE id = $1 AND status = 'open'",
+    )
+    .bind(id)
+    .bind(action)
+    .execute(&state.pool)
+    .await?
+    .rows_affected();
+
+    if updated == 0 {
+        return Err(ApiError::not_found("这条举报不存在或已处理"));
+    }
+
+    audit(
+        &state,
+        Some(user.id),
+        &format!("report_{action}"),
+        &id.to_string(),
+        json!({ "note": body.note.trim() }),
+    )
+    .await;
+
+    Ok(Json(json!({ "ok": true, "status": action })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TakedownBody {
+    #[serde(default)]
+    pub note: String,
+}
+
+/// 下架：资源状态转 takendown，已过审的版本一并转 rejected。
+/// 公开列表只查 published，所以这一步之后市场里立刻看不到。
+pub async fn takedown(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+    Json(body): Json<TakedownBody>,
+) -> Result<Json<Value>, ApiError> {
+    user.require_admin()?;
+
+    let note = body.note.trim();
+    if note.is_empty() {
+        return Err(ApiError::bad_request("下架要写原因，作者才有申诉依据"));
+    }
+
+    let mut tx = state.pool.begin().await?;
+
+    let updated = sqlx::query(
+        "UPDATE packages SET status = 'takendown', review_note = $2, updated_at = now()
+         WHERE id = $1 AND status = 'published'",
+    )
+    .bind(id)
+    .bind(note)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+
+    if updated == 0 {
+        return Err(ApiError::bad_request("只有已上架的资源可以下架"));
+    }
+
+    sqlx::query(
+        "UPDATE versions SET status = 'rejected' WHERE package_id = $1 AND status = 'approved'",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    audit(
+        &state,
+        Some(user.id),
+        "takedown",
+        &id.to_string(),
+        json!({ "note": note }),
+    )
+    .await;
+
+    Ok(Json(json!({ "ok": true, "status": "takendown" })))
+}

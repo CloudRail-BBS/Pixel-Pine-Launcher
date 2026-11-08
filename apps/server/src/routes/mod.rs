@@ -49,6 +49,9 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/admin/queue", get(admin::queue))
         .route("/v1/admin/packages/{id}/approve", post(admin::approve))
         .route("/v1/admin/packages/{id}/reject", post(admin::reject))
+        .route("/v1/admin/packages/{id}/takedown", post(admin::takedown))
+        .route("/v1/admin/reports", get(admin::reports))
+        .route("/v1/admin/reports/{id}/handle", post(admin::handle_report))
         // 资源包下载。走静态目录，将来换对象存储时只改这里
         .nest_service("/files", files)
         .layer(DefaultBodyLimit::max(BODY_LIMIT))

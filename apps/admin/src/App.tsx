@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Login } from "./components/Login";
 import * as api from "./lib/api";
-import type { AdminUser, QueueItem } from "./lib/api";
+import type { AdminUser, QueueItem, ReportItem } from "./lib/api";
 import { applyTheme, readThemeMode } from "./lib/theme";
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
@@ -10,6 +10,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft: { text: "草稿", cls: "badge" },
   published: { text: "已上架", cls: "badge badge-ok" },
   rejected: { text: "已驳回", cls: "badge badge-danger" },
+  takendown: { text: "已下架", cls: "badge badge-danger" },
 };
 
 export default function App() {
@@ -22,6 +23,10 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<QueueItem | null>(null);
+  const [tab, setTab] = useState<"queue" | "reports">("queue");
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [reportId, setReportId] = useState<number | null>(null);
+  const [takedownTarget, setTakedownTarget] = useState<ReportItem | null>(null);
 
   useEffect(() => {
     applyTheme(readThemeMode());
@@ -56,15 +61,21 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.queue();
-      setItems(result.items);
-      setSelectedId((current) => current ?? result.items[0]?.id ?? null);
+      if (tab === "queue") {
+        const result = await api.queue();
+        setItems(result.items);
+        setSelectedId((current) => current ?? result.items[0]?.id ?? null);
+      } else {
+        const result = await api.reports();
+        setReports(result.items);
+        setReportId((current) => current ?? result.items[0]?.id ?? null);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tab]);
 
   useEffect(() => {
     if (user) void load();
@@ -73,6 +84,11 @@ export default function App() {
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
     [items, selectedId],
+  );
+
+  const selectedReport = useMemo(
+    () => reports.find((item) => item.id === reportId) ?? null,
+    [reports, reportId],
   );
 
   async function act(kind: "approve" | "reject", item: QueueItem, note = "") {
@@ -88,6 +104,42 @@ export default function App() {
       setItems((current) => current.filter((row) => row.id !== item.id));
       setSelectedId((current) => (current === item.id ? null : current));
       setRejectTarget(null);
+      window.setTimeout(() => setNotice(null), 4000);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** 举报的两个终态：忽略 / 已处理。下架是单独动作，处理完再点。 */
+  async function actReport(item: ReportItem, action: "dismissed" | "handled") {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.handleReport(item.id, action);
+      setReports((current) => current.filter((row) => row.id !== item.id));
+      setReportId((current) => (current === item.id ? null : current));
+      setNotice(
+        action === "dismissed" ? `已忽略对《${item.title}》的举报` : `已标记《${item.title}》的举报`,
+      );
+      window.setTimeout(() => setNotice(null), 4000);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doTakedown(item: ReportItem, note: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.takedown(item.packageId, note);
+      // 同一资源的多条举报一起清掉，避免重复处理
+      setReports((current) => current.filter((row) => row.packageId !== item.packageId));
+      setTakedownTarget(null);
+      setNotice(`已下架《${item.title}》`);
       window.setTimeout(() => setNotice(null), 4000);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -124,7 +176,26 @@ export default function App() {
           <img src="/logo.png" alt="" />
           PPL 审核后台
         </div>
-        <span className={STATUS_LABEL.pending.cls}>{items.length} 条待处理</span>
+        <div className="tabs" role="tablist" aria-label="视图">
+          <button
+            role="tab"
+            aria-selected={tab === "queue"}
+            className={`tab${tab === "queue" ? " active" : ""}`}
+            onClick={() => setTab("queue")}
+          >
+            待审队列
+            {items.length > 0 && <span className="tab-count">{items.length}</span>}
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === "reports"}
+            className={`tab${tab === "reports" ? " active" : ""}`}
+            onClick={() => setTab("reports")}
+          >
+            举报
+            {reports.length > 0 && <span className="tab-count">{reports.length}</span>}
+          </button>
+        </div>
         <div className="topbar-spacer" />
         <div className="user-chip">
           <span>{user.email}</span>
@@ -147,10 +218,12 @@ export default function App() {
       <div className="body">
         <aside className="queue">
           <div className="queue-head">
-            <span className="queue-title">待审队列</span>
+            <span className="queue-title">
+              {tab === "queue" ? "待审队列" : "待处理举报"}
+            </span>
           </div>
           <div className="queue-list">
-            {loading && items.length === 0 && (
+            {loading && (tab === "queue" ? items.length : reports.length) === 0 && (
               <>
                 <div className="skeleton-row" />
                 <div className="skeleton-row" />
@@ -158,7 +231,7 @@ export default function App() {
               </>
             )}
 
-            {!loading && items.length === 0 && (
+            {tab === "queue" && !loading && items.length === 0 && (
               <div className="empty">
                 队列是空的
                 <br />
@@ -166,23 +239,47 @@ export default function App() {
               </div>
             )}
 
-            {items.map((item) => {
-              const status = STATUS_LABEL[item.status] ?? STATUS_LABEL.draft;
-              return (
+            {tab === "reports" && !loading && reports.length === 0 && (
+              <div className="empty">
+                没有待处理举报
+                <br />
+                用户举报后会出现在这里
+              </div>
+            )}
+
+            {tab === "queue" &&
+              items.map((item) => {
+                const status = STATUS_LABEL[item.status] ?? STATUS_LABEL.draft;
+                return (
+                  <button
+                    key={item.id}
+                    className={`queue-item${item.id === selectedId ? " selected" : ""}`}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <div className="queue-item-title">{item.title}</div>
+                    <div className="queue-item-meta">
+                      <span className={status.cls}>{status.text}</span>
+                      <span>{item.kind === "mod" ? "Mod" : "地图"}</span>
+                      <span>{item.version ? `v${item.version}` : "无版本"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+
+            {tab === "reports" &&
+              reports.map((item) => (
                 <button
                   key={item.id}
-                  className={`queue-item${item.id === selectedId ? " selected" : ""}`}
-                  onClick={() => setSelectedId(item.id)}
+                  className={`queue-item${item.id === reportId ? " selected" : ""}`}
+                  onClick={() => setReportId(item.id)}
                 >
                   <div className="queue-item-title">{item.title}</div>
                   <div className="queue-item-meta">
-                    <span className={status.cls}>{status.text}</span>
-                    <span>{item.kind === "mod" ? "Mod" : "地图"}</span>
-                    <span>{item.version ? `v${item.version}` : "无版本"}</span>
+                    <span className="badge badge-danger">举报</span>
+                    <span>{item.created}</span>
                   </div>
                 </button>
-              );
-            })}
+              ))}
           </div>
         </aside>
 
@@ -198,22 +295,50 @@ export default function App() {
             </div>
           )}
 
-          {!selected ? (
+          {tab === "queue" ? (
+            !selected ? (
+              <div className="detail-empty">
+                左边选一条资源
+                <br />
+                这里会显示它的版本、体积和下载地址
+              </div>
+            ) : (
+              <Detail
+                item={selected}
+                busy={busy}
+                onApprove={() => void act("approve", selected)}
+                onReject={() => setRejectTarget(selected)}
+              />
+            )
+          ) : !selectedReport ? (
             <div className="detail-empty">
-              左边选一条资源
+              左边选一条举报
               <br />
-              这里会显示它的版本、体积和下载地址
+              这里会显示举报理由和对应资源
             </div>
           ) : (
-            <Detail
-              item={selected}
+            <ReportDetail
+              item={selectedReport}
               busy={busy}
-              onApprove={() => void act("approve", selected)}
-              onReject={() => setRejectTarget(selected)}
+              onDismiss={() => void actReport(selectedReport, "dismissed")}
+              onHandle={() => void actReport(selectedReport, "handled")}
+              onTakedown={() => setTakedownTarget(selectedReport)}
             />
           )}
         </main>
       </div>
+
+      {takedownTarget && (
+        <NoteDialog
+          title={`下架《${takedownTarget.title}》`}
+          description="资源会立刻从市场消失，已上架的版本转为 rejected。原因会展示给作者。"
+          placeholder="例如：举报属实，包内含未授权的商业素材"
+          confirmText="确认下架"
+          busy={busy}
+          onCancel={() => setTakedownTarget(null)}
+          onConfirm={(note) => void doTakedown(takedownTarget, note)}
+        />
+      )}
 
       {rejectTarget && (
         <RejectDialog
@@ -342,6 +467,119 @@ function RejectDialog({
             onClick={() => onConfirm(note.trim())}
           >
             {busy ? "提交中…" : "确认驳回"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 一条举报的详情。左侧是举报内容，右侧动作分三档：忽略 / 已处理 / 下架。 */
+function ReportDetail({
+  item,
+  busy,
+  onDismiss,
+  onHandle,
+  onTakedown,
+}: {
+  item: ReportItem;
+  busy: boolean;
+  onDismiss: () => void;
+  onHandle: () => void;
+  onTakedown: () => void;
+}) {
+  const status = STATUS_LABEL[item.packageStatus] ?? STATUS_LABEL.draft;
+
+  return (
+    <>
+      <div className="detail-kind">
+        <span className="badge badge-danger">举报</span>
+        <span className={status.cls}>{status.text}</span>
+        <span className="badge">{item.kind === "mod" ? "Mod" : "地图"}</span>
+      </div>
+
+      <h1 className="detail-title">{item.title}</h1>
+      <p className="detail-sub">
+        {item.slug} · 举报于 {item.created}
+      </p>
+
+      <div className="report-reason">
+        <div className="report-reason-label">举报理由</div>
+        <p className="report-reason-body">{item.reason}</p>
+      </div>
+
+      <div className="meta-grid">
+        <div className="meta-cell">
+          <div className="meta-label">联系方式</div>
+          <div className="meta-value">{item.contact || "未留"}</div>
+        </div>
+        <div className="meta-cell">
+          <div className="meta-label">资源状态</div>
+          <div className="meta-value">{status.text}</div>
+        </div>
+      </div>
+
+      <div className="action-bar">
+        <button className="btn btn-danger" disabled={busy} onClick={onTakedown}>
+          下架资源
+        </button>
+        <button className="btn" disabled={busy} onClick={onHandle}>
+          标记已处理
+        </button>
+        <button className="btn btn-ghost" disabled={busy} onClick={onDismiss}>
+          忽略这条举报
+        </button>
+      </div>
+
+      <p className="detail-hint">
+        「标记已处理」只关掉举报，资源仍在架上；确认内容有问题请用「下架资源」。
+      </p>
+    </>
+  );
+}
+
+/** 通用原因弹窗：下架这类动作必须留下理由，否则作者申诉时无据可依。 */
+function NoteDialog({
+  title,
+  description,
+  placeholder,
+  confirmText,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  placeholder: string;
+  confirmText: string;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (note: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  const short = note.trim().length < 4;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal">
+        <h2 className="modal-title">{title}</h2>
+        <p className="modal-desc">{description}</p>
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder={placeholder}
+          autoFocus
+        />
+        <div className="modal-actions">
+          <button className="btn" onClick={onCancel} disabled={busy}>
+            取消
+          </button>
+          <button
+            className="btn btn-danger"
+            disabled={busy || short}
+            onClick={() => onConfirm(note.trim())}
+          >
+            {busy ? "处理中…" : confirmText}
           </button>
         </div>
       </div>
