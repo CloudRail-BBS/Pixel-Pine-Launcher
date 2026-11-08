@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { GameInstallCard } from "../components/GameInstallCard";
 import { PixelCover } from "../components/PixelCover";
 import { PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
@@ -18,6 +19,8 @@ interface LibraryPageProps {
   onLaunch: () => void;
   onAddInstance: (root: string) => void;
   onBrowse: () => void;
+  /** 下载安装完成后，按目录登记成实例 */
+  onInstalled: (root: string) => void;
 }
 
 export function LibraryPage({
@@ -33,6 +36,7 @@ export function LibraryPage({
   onLaunch,
   onAddInstance,
   onBrowse,
+  onInstalled,
 }: LibraryPageProps) {
   const [path, setPath] = useState("");
   const enabledCount = mods.filter((mod) => mod.enabled).length;
@@ -44,39 +48,31 @@ export function LibraryPage({
         <header className="page-head">
           <div>
             <h1 className="page-title">库</h1>
-            <p className="page-desc">还没有找到《铁锈战争》，把游戏目录指给我</p>
+            <p className="page-desc">还没找到《铁锈战争》，下载一份或者指给我你已经装在哪</p>
           </div>
         </header>
 
-        <div className="card" style={{ maxWidth: 620 }}>
-          <div style={{ fontSize: 14, marginBottom: 6 }}>游戏根目录</div>
-          <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 14 }}>
-            就是包含 <code>Rusted Warfare.exe</code> 的那一层，下面应该有 <code>mods</code> 文件夹。
-          </div>
-          <label className="search">
+        <GameInstallCard onInstalled={onInstalled} onBrowse={onBrowse} />
+
+        <details className="path-fallback">
+          <summary>手动输入路径</summary>
+          <label className="search" style={{ marginTop: 10 }}>
             <input
               value={path}
               onChange={(event) => setPath(event.target.value)}
-              placeholder="D:\Steam\steamapps\common\Rusted Warfare"
+              placeholder="D://Steam//steamapps//common//Rusted Warfare"
               aria-label="游戏根目录"
             />
           </label>
-          <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-            <button className="btn btn-primary" onClick={onBrowse}>
-              浏览…
-            </button>
-            <button
-              className="btn"
-              disabled={path.trim().length === 0}
-              onClick={() => onAddInstance(path.trim())}
-            >
-              使用这个路径
-            </button>
-          </div>
-          <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>
-            不喜欢手打路径就点「浏览…」，会打开系统文件管理器。
-          </div>
-        </div>
+          <button
+            className="btn btn-sm"
+            style={{ marginTop: 8 }}
+            disabled={path.trim().length === 0}
+            onClick={() => onAddInstance(path.trim())}
+          >
+            使用这个路径
+          </button>
+        </details>
       </>
     );
   }

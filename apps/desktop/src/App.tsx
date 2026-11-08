@@ -14,6 +14,7 @@ import {
   watchSystemTheme,
   type ThemeMode,
 } from "./lib/theme";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { LibraryPage } from "./pages/LibraryPage";
 import { MapsPage } from "./pages/MapsPage";
 import { MarketPage } from "./pages/MarketPage";
@@ -467,6 +468,7 @@ export default function App() {
                 onLaunch={launch}
                 onAddInstance={addInstance}
                 onBrowse={() => void browseForGame()}
+                onInstalled={(root) => void addInstance(root)}
               />
             )}
 
@@ -593,6 +595,8 @@ export default function App() {
               </div>
             </div>
           )}
+
+          <UpdateBanner />
 
           {toast && (
             <div className="toast" role="alert">

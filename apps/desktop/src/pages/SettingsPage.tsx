@@ -12,6 +12,8 @@ import {
   type MarketSource,
 } from "../lib/market";
 import type { ThemeMode } from "../lib/theme";
+import { OFFICIAL_GAME_SOURCE, gameSource, setGameSource } from "../lib/game";
+import { checkUpdate } from "../lib/updater";
 
 interface SettingsPageProps {
   version: string;
@@ -95,21 +97,8 @@ export function SettingsPage({
       </section>
 
       <section className="section">
-        <div className="section-title">下载</div>
-        <div className="card">
-          <div className="kv">
-            <span>并发分片</span>
-            <span>3</span>
-          </div>
-          <div className="kv">
-            <span>断点续传</span>
-            <span>已开启</span>
-          </div>
-          <div className="kv">
-            <span>安装校验</span>
-            <span>SHA256</span>
-          </div>
-        </div>
+        <div className="section-title">下载与更新</div>
+        <DownloadSettings version={version} />
       </section>
 
       <section className="section">
@@ -307,6 +296,86 @@ function MarketSources({ onChange }: { onChange: () => void }) {
           添加市场源
         </button>
       )}
+    </div>
+  );
+}
+
+
+/** 游戏分发源与自更新。 */
+function DownloadSettings({ version }: { version: string }) {
+  const [source, setSource] = useState(() => gameSource());
+  const [saved, setSaved] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [updateState, setUpdateState] = useState<string | null>(null);
+
+  function save() {
+    const next = setGameSource(source);
+    setSource(next);
+    setSaved(next === OFFICIAL_GAME_SOURCE ? "已恢复官方清单" : "已保存，回到库页会重新读取");
+    window.setTimeout(() => setSaved(null), 4000);
+  }
+
+  async function check() {
+    setChecking(true);
+    setUpdateState(null);
+    const result = await checkUpdate();
+    setUpdateState(
+      result
+        ? `发现新版本 v${result.version}，右下角可以更新`
+        : "已是最新版本（或暂时连不上更新服务）",
+    );
+    setChecking(false);
+  }
+
+  return (
+    <div className="card">
+      <div style={{ fontSize: 14 }}>游戏下载源</div>
+      <div style={{ fontSize: 12, color: "var(--text-3)", margin: "2px 0 10px", lineHeight: 1.7 }}>
+        指向一份 <code>game-index.json</code>。留空用官方清单；
+        没有可下载版本时会引导去官方商店，不会给一个点了没反应的按钮。
+      </div>
+
+      <input
+        className="field"
+        value={source}
+        onChange={(event) => setSource(event.target.value)}
+        placeholder={OFFICIAL_GAME_SOURCE}
+        spellCheck={false}
+        aria-label="游戏下载源"
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+        <button className="btn btn-sm" onClick={save}>
+          保存
+        </button>
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={() => {
+            setGameSource(OFFICIAL_GAME_SOURCE);
+            setSource(OFFICIAL_GAME_SOURCE);
+            setSaved("已恢复官方清单");
+            window.setTimeout(() => setSaved(null), 4000);
+          }}
+        >
+          恢复默认
+        </button>
+        {saved && <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{saved}</span>}
+      </div>
+
+      <div className="kv" style={{ marginTop: 18, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+        <span>当前版本</span>
+        <span>v{version}</span>
+      </div>
+      <div className="kv">
+        <span>更新通道</span>
+        <span>预览版（pre-release）</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
+        <button className="btn btn-sm" onClick={() => void check()} disabled={checking}>
+          {checking ? "检查中…" : "检查更新"}
+        </button>
+        {updateState && <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{updateState}</span>}
+      </div>
     </div>
   );
 }

@@ -416,6 +416,247 @@ fn link_status(root: String) -> String {
     .to_string()
 }
 
+/// 游戏版本目录（按平台 + 通道整理好，前端不再自己比版本号）。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameCatalog {
+    platform: String,
+    channels: Vec<String>,
+    versions: Vec<ppl_core::GameVersion>,
+}
+
+/// 拉取游戏版本清单。
+///
+/// 清单地址不写死在代码里：能不能分发游戏本体取决于授权，
+/// 运营方把 URL 填进设置就行，拿不到授权就让这个接口失败，
+/// 界面自动退回「去官方渠道」。
+#[tauri::command]
+async fn fetch_game_catalog(url: String) -> Result<GameCatalog, String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("版本清单地址不是 http(s)".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent(concat!("PixelPineLauncher/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("初始化请求失败：{error}"))?;
+
+    let response = client.get(&url).send().await.map_err(|error| {
+        if error.is_timeout() {
+            "版本清单响应超时".to_string()
+        } else if error.is_connect() {
+            "连不上版本清单服务器".to_string()
+        } else {
+            format!("拉取版本清单失败：{error}")
+        }
+    })?;
+
+    // 204 是约定好的「暂时没有可下载版本」，不是错误
+    if response.status().as_u16() == 204 {
+        return Ok(GameCatalog {
+            platform: ppl_core::current_platform().to_string(),
+            channels: Vec::new(),
+            versions: Vec::new(),
+        });
+    }
+    if !response.status().is_success() {
+        return Err(format!("版本清单返回 {}", response.status().as_u16()));
+    }
+
+    let text = response
+        .text()
+        .await
+        .map_err(|error| format!("读取版本清单失败：{error}"))?;
+    let manifest = ppl_core::GameManifest::parse(&text).map_err(fail)?;
+
+    Ok(GameCatalog {
+        platform: ppl_core::current_platform().to_string(),
+        channels: manifest.channels(),
+        versions: manifest
+            .sorted_for_platform()
+            .into_iter()
+            .cloned()
+            .collect(),
+    })
+}
+
+/// 单个游戏压缩包的上限。游戏本体比 Mod 大得多，但也不能没有上限。
+const MAX_GAME_BYTES: u64 = 3 * 1024 * 1024 * 1024;
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct GameProgress {
+    downloaded: u64,
+    total: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameInstallView {
+    root: String,
+    files: usize,
+    bytes: u64,
+}
+
+/// 下载并安装游戏本体。
+///
+/// 链路：流式下载到临时文件（边下边报进度）→ 校验 SHA256 →
+/// 解压到暂存目录 → 整体 rename 到位。任何一步失败都清干净，
+/// 不会在目标路径留下半个游戏。
+#[tauri::command]
+async fn install_game_from_url(
+    app: tauri::AppHandle,
+    url: String,
+    target: String,
+    sha256: String,
+    entry: Option<String>,
+) -> Result<GameInstallView, String> {
+    use tauri::Emitter;
+
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("下载地址不是 http(s)，已拒绝".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        // 不再设整体超时：150MB+ 的包在慢网下会被误杀。
+        // 连接阶段单独给 20 秒，卡住的连接才需要掐断。
+        .connect_timeout(std::time::Duration::from_secs(20))
+        .user_agent(concat!("PixelPineLauncher/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("初始化下载器失败：{error}"))?;
+
+    let mut response = client.get(&url).send().await.map_err(|error| {
+        if error.is_timeout() {
+            "连接下载服务器超时".to_string()
+        } else if error.is_connect() {
+            "连不上下载服务器".to_string()
+        } else {
+            format!("下载失败：{error}")
+        }
+    })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(match status.as_u16() {
+            404 => "下载地址失效（404）".to_string(),
+            403 => "没有下载权限（403）".to_string(),
+            code => format!("下载失败：服务端返回 {code}"),
+        });
+    }
+
+    let total = response.content_length().unwrap_or(0);
+    if total > MAX_GAME_BYTES {
+        return Err(format!(
+            "安装包 {:.1} GB，超过上限",
+            total as f64 / 1_073_741_824.0
+        ));
+    }
+
+    let stamp = std::process::id();
+    let temp = std::env::temp_dir().join(format!("ppl-game-{stamp}.zip"));
+    let mut file = std::fs::File::create(&temp)
+        .map_err(|error| format!("创建临时文件失败：{error}"))?;
+
+    let mut downloaded: u64 = 0;
+    let mut last_emit: u64 = 0;
+    use std::io::Write;
+
+    loop {
+        let chunk = response.chunk().await.map_err(|error| {
+            let _ = std::fs::remove_file(&temp);
+            format!("下载中断：{error}")
+        })?;
+
+        let Some(chunk) = chunk else { break };
+        file.write_all(&chunk)
+            .map_err(|error| format!("写入临时文件失败：{error}"))?;
+
+        downloaded += chunk.len() as u64;
+        if downloaded > MAX_GAME_BYTES {
+            let _ = std::fs::remove_file(&temp);
+            return Err("安装包超过上限，已中止".to_string());
+        }
+
+        // 每 4MB 报一次进度：每块都发事件会把 IPC 打满
+        if downloaded - last_emit >= 4 * 1024 * 1024 {
+            last_emit = downloaded;
+            let _ = app.emit(
+                "game-progress",
+                GameProgress {
+                    downloaded,
+                    total,
+                },
+            );
+        }
+    }
+
+    // 关掉句柄再校验：Windows 上文件被占着时读取会失败
+    drop(file);
+
+    let _ = app.emit(
+        "game-progress",
+        GameProgress {
+            downloaded,
+            total: if total == 0 { downloaded } else { total },
+        },
+    );
+
+    // 校验放在解压之前：坏包连解压的机会都不给
+    let result = (|| -> ppl_core::Result<ppl_core::GameInstall> {
+        ppl_core::verify_sha256(&temp, &sha256)?;
+        let entry = entry.unwrap_or_else(|| {
+            if cfg!(windows) {
+                "Rusted Warfare.exe".to_string()
+            } else {
+                "Rusted Warfare".to_string()
+            }
+        });
+        ppl_core::install_game(&temp, std::path::Path::new(&target), &entry)
+    })();
+
+    let _ = std::fs::remove_file(&temp);
+
+    let install = result.map_err(fail)?;
+    Ok(GameInstallView {
+        root: install.root.to_string_lossy().into_owned(),
+        files: install.files,
+        bytes: install.bytes,
+    })
+}
+
+/// 默认的游戏安装根目录。前端在它下面按「Rusted Warfare」建子目录。
+#[tauri::command]
+fn games_root() -> String {
+    ppl_core::games_root().to_string_lossy().into_owned()
+}
+
+/// 用系统默认浏览器打开一个链接。
+///
+/// 不用插件是因为只需要「打开」一件事；而且插件会把 URL 处理
+/// 变成一条命令权限，多一个可被前端调用的入口。
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("只允许打开 http(s) 链接".to_string());
+    }
+
+    #[cfg(windows)]
+    let result = std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn();
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(&url).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+
+    result
+        .map(|_| ())
+        .map_err(|error| format!("打开浏览器失败：{error}"))
+}
+
 #[tauri::command]
 fn launch_game(root: String) -> Result<u32, String> {
     let instance = Instance::from_root(&root, InstanceSource::Manual).map_err(fail)?;
@@ -425,6 +666,8 @@ fn launch_game(root: String) -> Result<u32, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             discover_instances,
             list_instances,
@@ -441,7 +684,11 @@ pub fn run() {
             set_mod_enabled,
             attach_loadout,
             link_status,
-            launch_game
+            launch_game,
+            fetch_game_catalog,
+            install_game_from_url,
+            games_root,
+            open_url
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

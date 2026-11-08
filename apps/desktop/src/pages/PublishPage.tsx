@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Modal } from "../components/Modal";
+import { UploadIcon } from "../components/Icons";
 import { mountGeetest, type GeetestResult } from "../lib/geetest";
 import * as publish from "../lib/publish";
 import type { AuthConfig, MyPackage, PublishUser } from "../lib/publish";
@@ -8,6 +10,7 @@ import type { AuthConfig, MyPackage, PublishUser } from "../lib/publish";
 export function PublishPage() {
   const [user, setUser] = useState<PublishUser | null>(null);
   const [booting, setBooting] = useState(true);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
     if (!publish.getToken()) {
@@ -29,22 +32,66 @@ export function PublishPage() {
     );
   }
 
-  if (!user) {
-    return <LoginCard onDone={setUser} />;
+  if (user) {
+    return (
+      <Workspace
+        user={user}
+        onLogout={() => {
+          publish.setToken(null);
+          setUser(null);
+        }}
+      />
+    );
   }
 
+  // 没登录时不把整页做成一张表单：先给一个明确的入口，
+  // 点开才出弹层。页面上其余信息（能发什么、审核怎么走）保持可读。
   return (
-    <Workspace
-      user={user}
-      onLogout={() => {
-        publish.setToken(null);
-        setUser(null);
-      }}
-    />
+    <>
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">发布</h1>
+          <p className="page-desc">上传 .rwmod 或地图包，通过审核后会出现在市场里</p>
+        </div>
+      </header>
+
+      <div className="gate">
+        <div className="gate-icon" aria-hidden="true">
+          <UploadIcon />
+        </div>
+        <h2 className="gate-title">登录后发布资源</h2>
+        <p className="gate-desc">
+          用邮箱验证码登录，不需要密码，也不用注册。
+          登录后可以上传 Mod 或地图，提交后由人工审核。
+        </p>
+        <button className="btn btn-primary" onClick={() => setLoginOpen(true)}>
+          邮箱登录
+        </button>
+        <p className="gate-hint">账号与审核后台通用，没有密码可以丢失。</p>
+      </div>
+
+      <LoginDialog
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onDone={(next) => {
+          setUser(next);
+          setLoginOpen(false);
+        }}
+      />
+    </>
   );
 }
 
-function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
+/** 登录弹层：邮箱 → 人机验证 → 6 位验证码。 */
+function LoginDialog({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: (user: PublishUser) => void;
+}) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -56,7 +103,19 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
   const [captcha, setCaptcha] = useState<GeetestResult | null>(null);
   const slot = useRef<HTMLDivElement>(null);
 
+  // 关上就把状态清回初始：下次打开不该还停在输验证码那一步
   useEffect(() => {
+    if (open) return;
+    setStep("email");
+    setCode("");
+    setError(null);
+    setHint(null);
+    setCaptcha(null);
+    setBusy(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     let alive = true;
     publish
       .authConfig()
@@ -69,12 +128,12 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     const id = config?.geetestId;
     const node = slot.current;
-    if (!id || !node || captcha) return;
+    if (!open || !id || !node || captcha) return;
 
     node.innerHTML = "";
     let alive = true;
@@ -86,7 +145,7 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
     return () => {
       alive = false;
     };
-  }, [config, captcha]);
+  }, [open, config, captcha]);
 
   async function send() {
     if (!email.trim()) {
@@ -103,7 +162,11 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
       const result = await publish.requestCode(email.trim(), captcha);
       setCaptcha(null);
       setStep("code");
-      setHint(result.devCode ? `开发模式验证码：${result.devCode}` : `验证码已发到 ${email.trim()}`);
+      setHint(
+        result.devCode
+          ? `开发模式验证码：${result.devCode}`
+          : `验证码已发到 ${email.trim()}`,
+      );
       if (result.devCode) setCode(result.devCode);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -132,52 +195,18 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
   }
 
   return (
-    <div className="publish-login">
-      <div className="card publish-login-card">
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 500 }}>登录后发布资源</h2>
-        <p style={{ margin: "6px 0 16px", fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.6 }}>
-          {step === "email"
-            ? "用邮箱验证码登录。没有密码，也不需要注册。"
-            : "输入邮件里的 6 位验证码。"}
-        </p>
-
-        <input
-          className="field"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
-          disabled={step === "code"}
-          aria-label="邮箱"
-        />
-
-        {step === "email" && config?.geetestId && <div className="captcha-slot" ref={slot} />}
-
-        {step === "code" && (
-          <input
-            className="field"
-            style={{ marginTop: 10, letterSpacing: "0.4em", textAlign: "center" }}
-            value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="000000"
-            inputMode="numeric"
-            autoFocus
-            aria-label="验证码"
-          />
-        )}
-
-        {error && (
-          <div className="notice notice-error" style={{ marginTop: 12 }}>
-            {error}
-          </div>
-        )}
-        {!error && hint && (
-          <div className="notice notice-ok" style={{ marginTop: 12 }}>
-            {hint}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+    <Modal
+      open={open}
+      title="登录"
+      description={
+        step === "email"
+          ? "用邮箱接收一次性验证码，不设密码。"
+          : "输入邮件里的 6 位验证码。"
+      }
+      onClose={onClose}
+      dismissable={!busy}
+      footer={
+        <>
           {step === "code" && (
             <button
               className="btn"
@@ -194,15 +223,55 @@ function LoginCard({ onDone }: { onDone: (user: PublishUser) => void }) {
           )}
           <button
             className="btn btn-primary"
-            style={{ flex: 1 }}
             disabled={busy}
             onClick={() => void (step === "email" ? send() : verify())}
           >
             {busy ? "处理中…" : step === "email" ? "发送验证码" : "登录"}
           </button>
+        </>
+      }
+    >
+      <label className="publish-field">
+        <span className="meta-label">邮箱</span>
+        <input
+          className="field"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          disabled={step === "code" || busy}
+          autoComplete="email"
+        />
+      </label>
+
+      {step === "email" && config?.geetestId && <div className="captcha-slot" ref={slot} />}
+
+      {step === "code" && (
+        <label className="publish-field" style={{ marginTop: 12 }}>
+          <span className="meta-label">验证码</span>
+          <input
+            className="field code-input"
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+          />
+        </label>
+      )}
+
+      {error && (
+        <div className="notice notice-error" style={{ marginTop: 12 }} role="alert">
+          {error}
         </div>
-      </div>
-    </div>
+      )}
+      {!error && hint && (
+        <div className="notice notice-ok" style={{ marginTop: 12 }}>
+          {hint}
+        </div>
+      )}
+    </Modal>
   );
 }
 

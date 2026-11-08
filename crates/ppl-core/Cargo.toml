@@ -12,10 +12,14 @@ ppl-package = { path = "../ppl-package" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# 解压游戏本体用；资源包扫描在 ppl-package 里，两边版本一致
+zip = "9.4.2"
+sha2 = "0.10"
+hex = "0.4"
 
 [target."cfg(windows)".dependencies]
 junction = "2.1.0"
 winreg = "0.56.0"
 
 [dev-dependencies]
-zip = "9.4.2"
+tempfile = "3"

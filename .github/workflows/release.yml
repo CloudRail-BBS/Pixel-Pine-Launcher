@@ -1,0 +1,86 @@
+name: Release
+
+# 打 tag 就出安装包，也可以在 Actions 页面手动跑一次。
+# 安装包不在本地构建：签名密钥和产物都留在 CI，谁都能复现同一份二进制。
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要发布的标签（必须和 tauri.conf.json 的 version 对得上）
+        required: true
+        default: v0.1.0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows 安装包
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - name: 安装前端依赖
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: 构建并发布
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 自更新签名：少了这个变量，带 createUpdaterArtifacts 的构建会直接失败。
+          # 变量内容就是 .key 文件的全文，不是路径。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: Pixel-Pine-Launcher ${{ github.event.inputs.tag || github.ref_name }}
+          # 预览版固定标成 pre-release：
+          # GitHub 的 releases/latest 只指向正式版，预览版不会被误当成稳定版本推给所有人
+          prerelease: true
+          releaseDraft: false
+          args: --bundles nsis
+          releaseBody: |
+            ## Pixel-Pine-Launcher 预览版
+
+            首个公开预览。功能可用，但请当作**测试版**看待。
+
+            ### 已实现
+            - 游戏实例发现（Steam / 免安装 / 手动指定）与一键启动
+            - Loadout 作战预设：同一份 Mod 多个版本共存，切换零拷贝
+            - 资源市场：多市场源、搜索筛选、详情、版本历史、安装 / 升级 / 卸载
+            - 拖拽导入 `.rwmod`，落盘前做路径穿越 / 可执行文件 / 压缩炸弹检查
+            - 联机房间列表（CNKD 中转，4 秒轮询）
+            - 发布资源：邮箱验证码登录 → 上传 → 提交审核
+            - 游戏本体下载（需运营方提供已授权的版本清单，否则引导至官方商店）
+            - 自更新：新版本在启动后自动探测
+
+            ### 已知限制
+            - 仅提供 Windows x64 安装包，macOS / Linux 尚未出包
+            - 市场服务端需自行部署，`docs/DEPLOY.md` 有完整步骤
+            - 预览版使用单独的更新通道，不会自动升级到后续正式版
+
+            ### 安装说明
+            下载 `*-setup.exe` 直接安装，装到当前用户目录，不需要管理员权限。
+            Windows 可能提示「未知发布者」——预览版未做代码签名。

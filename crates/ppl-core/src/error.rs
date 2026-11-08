@@ -36,6 +36,27 @@ pub enum Error {
     /// 指定名称的 Mod 不存在。
     #[error("找不到 Mod：{0}")]
     ModNotFound(String),
+
+    /// 压缩包内容不安全（路径穿越、符号链接、解压炸弹）。
+    #[error("{0}")]
+    UnsafeArchive(String),
+
+    /// 安装目标已被占用。
+    #[error("{} 里已经有文件，不会覆盖", .0.display())]
+    GameTargetOccupied(PathBuf),
+
+    /// 校验值对不上。
+    #[error("文件校验失败：期望 {expected}，实际 {actual}")]
+    HashMismatch {
+        /// 清单里写的值。
+        expected: String,
+        /// 实际算出来的值。
+        actual: String,
+    },
+
+    /// 版本清单格式不对。
+    #[error("版本清单有问题：{0}")]
+    Manifest(String),
 }
 
 /// 内核统一 `Result`。

@@ -22,7 +22,9 @@
 //! # Ok::<(), ppl_core::Error>(())
 //! ```
 
+pub mod archive;
 pub mod error;
+pub mod gamedl;
 pub mod import;
 pub mod instance;
 pub mod library;
@@ -30,7 +32,14 @@ pub mod loadout;
 pub mod maps;
 pub mod paths;
 
+pub use paths::games_root;
+
+pub use archive::{ExtractLimits, ExtractStats, extract_zip, locate_root};
 pub use error::{Error, Result};
+pub use gamedl::{
+    GameInstall, GameManifest, GameVersion, current_platform, install_game, sha256_file,
+    verify_sha256,
+};
 pub use import::{
     ImportedPackage, import_many, import_package, install_from_path, uninstall_package,
 };

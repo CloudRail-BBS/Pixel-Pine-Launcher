@@ -64,3 +64,11 @@ pub fn loadouts_root() -> PathBuf {
 pub fn instances_root() -> PathBuf {
     data_root().join("instances")
 }
+
+/// PPL 自己下载的游戏装在哪里。
+///
+/// 不往 Steam 目录里塞：那是 Steam 的地盘，混进去会让「验证文件完整性」
+/// 和卸载都变得莫名其妙。用户的 Steam 版照旧由 Steam 管，两份互不干扰。
+pub fn games_root() -> PathBuf {
+    data_root().join("games")
+}
