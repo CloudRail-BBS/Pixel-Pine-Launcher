@@ -17,8 +17,8 @@
  * 少一个平台就直接报错——静默漏掉一个平台，等于那个平台的用户永远停在旧版本。
  */
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 /** 期望一定要有更新条目的平台。与 release.yml 的构建矩阵一一对应。 */
 const REQUIRED = ["windows-x86_64", "linux-x86_64", "darwin-aarch64", "darwin-x86_64"];
@@ -86,36 +86,65 @@ function platformOf(name) {
     return "windows-x86_64";
   }
 
-  // 更新用的是 AppImage 的 tar.gz（Tauri 只会替换整个 AppImage 文件），
-  // 裸 .AppImage 是给人手动下载的，不进清单
+  // Tauri 对 AppImage 的更新产物是打了签名的 .AppImage 本身
+  // （某些版本会额外生成 .AppImage.tar.gz，两种都认，优先 tar.gz）
   if (lower.endsWith(".appimage.tar.gz")) {
+    return lower.includes("aarch64") ? "linux-aarch64" : "linux-x86_64";
+  }
+
+  if (lower.endsWith(".appimage")) {
     return lower.includes("aarch64") ? "linux-aarch64" : "linux-x86_64";
   }
 
   if (lower.endsWith(".app.tar.gz")) {
     if (lower.includes("universal")) return "darwin-universal";
-    return lower.includes("aarch64") ? "darwin-aarch64" : "darwin-x86_64";
+    if (lower.includes("aarch64")) return "darwin-aarch64";
+    // tauri 默认命名成 `<产品名>.app.tar.gz`，不带架构；两个架构会撞名，
+    // 所以 workflow 里会补上 `_aarch64` / `_x64`。没补的一律当成 x64 处理会出错，
+    // 这里直接跳过并提示，比发一份错位两台的更新清单强。
+    if (lower.includes("x64") || lower.includes("x86_64")) return "darwin-x86_64";
+    warn(`${name} 没有架构标记（_aarch64 / _x64），跳过`);
+    return null;
   }
 
   return null;
 }
 
-const files = readdirSync(dir);
+/**
+ * 递归列出目录里的文件。
+ *
+ * 不能只看顶层：`upload-artifact` 会保留相对于「公共祖先目录」的路径，
+ * 下载回来后是 `dist/nsis/*.exe`、`dist/dmg/*.dmg` 这样的结构。
+ * 摊平上传和分层下载都得能跑，所以按 basename 判断，不看层级。
+ */
+function walk(current) {
+  const found = [];
+  for (const entry of readdirSync(current, { withFileTypes: true })) {
+    const full = join(current, entry.name);
+    if (entry.isDirectory()) found.push(...walk(full));
+    else if (entry.isFile()) found.push(full);
+  }
+  return found;
+}
+
+const paths = walk(dir);
+const names = new Set(paths.map((path) => path.split(/[\\/]/).pop()));
 const entries = new Map();
 
-for (const name of files) {
+for (const path of paths) {
+  const name = path.split(/[\\/]/).pop();
   const platform = platformOf(name);
   if (!platform) continue;
 
-  const sigName = `${name}.sig`;
-  if (!files.includes(sigName)) {
+  if (!names.has(`${name}.sig`)) {
     warn(`${name} 没有配套的 .sig，跳过（装不上也无法校验的包不能进更新清单）`);
     continue;
   }
 
-  const signature = readFileSync(join(dir, sigName), "utf8").trim();
+  const sigPath = paths.find((item) => item.split(/[\\/]/).pop() === `${name}.sig`);
+  const signature = readFileSync(sigPath, "utf8").trim();
   if (!signature) {
-    fail(`${sigName} 是空的`);
+    fail(`${name}.sig 是空的`);
   }
 
   const url = `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(name)}`;
@@ -126,7 +155,7 @@ for (const name of files) {
     entries.set("darwin-aarch64", entry);
     entries.set("darwin-x86_64", entry);
   } else if (entries.has(platform)) {
-    warn(`平台 ${platform} 出现了多个包，保留 ${basename(entries.get(platform).url)}`);
+    warn(`平台 ${platform} 出现了多个包，保留先找到的那一个`);
   } else {
     entries.set(platform, entry);
   }

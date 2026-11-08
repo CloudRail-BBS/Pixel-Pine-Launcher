@@ -94,12 +94,14 @@ jobs:
             target: aarch64-apple-darwin
             bundles: app,dmg
             artifact: macos-arm64
+            arch: aarch64
 
           - label: macOS x64
             os: macos-latest
             target: x86_64-apple-darwin
             bundles: app,dmg
             artifact: macos-x64
+            arch: x64
 
     steps:
       - uses: actions/checkout@v4
@@ -152,6 +154,23 @@ jobs:
         # 重试只是重新打包（Rust 产物已就绪），几十秒。
         run: node ../../scripts/build-bundles.mjs --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
+      # tauri 把 macOS 更新包固定命名成 `<产品名>.app.tar.gz`，两个架构撞名，
+      # 传到 artifact 里会互相覆盖——latest.json 里就只剩一个 Mac 能更新。
+      - name: macOS 更新包补架构后缀
+        if: matrix.arch
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos
+        run: |
+          for f in *.app.tar.gz; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%.app.tar.gz}_${{ matrix.arch }}.app.tar.gz"
+          done
+          for f in *.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%.app.tar.gz.sig}_${{ matrix.arch }}.app.tar.gz.sig"
+          done
+          ls -l
+
       # 只收安装包和签名，不收 `.app` 目录与中间产物——
       # artifact 按体积计费，几百 MB 的目录树没必要传
       - name: 收集产物
@@ -188,8 +207,13 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: 列出产物
-        run: ls -lh dist
+      # download-artifact 会保留「相对于公共祖先」的路径（dist/nsis/xxx.exe），
+      # 摊平再上传：gh release 拿目录会报错，而且更难看
+      - name: 摊平产物
+        run: |
+          find dist -mindepth 2 -type f -exec mv -f {} dist/ \;
+          find dist -mindepth 1 -type d -empty -delete
+          ls -lh dist
 
       - name: 生成 latest.json
         run: |

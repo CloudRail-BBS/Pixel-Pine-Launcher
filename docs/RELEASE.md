@@ -57,10 +57,19 @@ publish ── 汇总产物 → 生成 latest.json → 创建 Release（prerelea
 | 平台 | 给用户下载 | 更新用（latest.json 里引用） |
 |---|---|---|
 | Windows | `*-setup.exe` | `*-setup.exe` |
-| Linux | `.AppImage` / `.deb` | `.AppImage.tar.gz` |
-| macOS | `.dmg` | `.app.tar.gz` |
+| Linux | `.AppImage` / `.deb` | `.AppImage`（tar.gz 版本也认） |
+| macOS | `.dmg` | `*.app.tar.gz`（按架构加了 `_aarch64` / `_x64`） |
 
 `.sig` 是 minisign 签名，只有客户端更新时会校验，别删。
+
+两个真踩过的坑：
+
+- **macOS 更新包不带架构**：tauri 固定命名成 `<产品名>.app.tar.gz`，两个架构的产物
+  同名，进了 artifact 就互相覆盖，`latest.json` 里只剩一个 Mac 能更新。
+  workflow 里多一步 `mv` 补上 `_aarch64` / `_x64`。
+- **artifact 会分层**：`upload-artifact` 保留「相对公共祖先」的路径，下载回来是
+  `dist/nsis/…`、`dist/dmg/…`。发布任务先摊平再喂给脚本，
+  清单脚本本身也按 basename 递归找，两层都兜住。
 
 **只有打版本标签才会打包**：普通提交只跑 CI（fmt / clippy / test），
 不产物、不发 Release——避免每推一次代码就多一个「看起来能用」的安装包。

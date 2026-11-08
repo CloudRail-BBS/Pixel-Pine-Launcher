@@ -32,7 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # enablement: true —— 仓库第一次跑时自动把 Pages 打开（Source = GitHub Actions），
+      # 否则要人工去 Settings → Pages 点一次，工作流会直接失败在 configure 这步
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
