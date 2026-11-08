@@ -65,6 +65,8 @@ impl Probe {
 }
 
 /// 可能的可执行文件名（大小写不敏感匹配）。
+///
+/// 前两项是 Windows 的 exe，后两项是 Linux/Steam 的原生二进制（没有扩展名）。
 const EXE_NAMES: &[&str] = &[
     "rusted warfare.exe",
     "rustedwarfare.exe",
@@ -72,12 +74,23 @@ const EXE_NAMES: &[&str] = &[
     "rustedwarfare",
 ];
 
+// macOS 的游戏是 `.app` 包，Steam 会把它装成 `Rusted Warfare.app`。
+// 包结构由 `bundle_root` 负责换算，这里不参与名字匹配——
+// 免得某个 Windows 用户把文件夹命名成 `foo.app` 就被误判成游戏。
+
 impl Instance {
     /// 探测一个目录。
     pub fn probe(root: impl AsRef<Path>) -> Result<Probe> {
         let mut root = root.as_ref().to_path_buf();
         if root.is_file() {
             root.pop();
+        }
+
+        // macOS 的游戏是 `.app` 包。包本身不是能 spawn 的程序，
+        // 而且它内部结构固定，所以先把根目录换算到包里的 `Contents/MacOS`，
+        // 之后所有「可执行文件旁边就是 mods」的假设在三个平台上就一致了。
+        if let Some(inner) = bundle_root(&root) {
+            root = inner;
         }
 
         let exe = find_executable(&root);
@@ -205,8 +218,52 @@ pub fn discover() -> Vec<Instance> {
     found
 }
 
+/// 把 macOS `.app` 包换算成包内的 `Contents/MacOS`。
+///
+/// 两种入口都要认：用户直接选中 `Rusted Warfare.app`，
+/// 或者选中装着这个包的 Steam 目录。
+///
+/// 不是 macOS 包就返回 `None`，调用方保持原路径——所以这个函数在
+/// Windows / Linux 上只是白跑一次 `read_dir`。
+fn bundle_root(root: &Path) -> Option<PathBuf> {
+    if is_app_bundle(root) {
+        let inner = root.join("Contents").join("MacOS");
+        return inner.is_dir().then_some(inner);
+    }
+
+    let entries = std::fs::read_dir(root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !is_app_bundle(&path) {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default();
+        if !name.starts_with("rusted") {
+            continue;
+        }
+        let inner = path.join("Contents").join("MacOS");
+        if inner.is_dir() {
+            return Some(inner);
+        }
+    }
+    None
+}
+
+fn is_app_bundle(path: &Path) -> bool {
+    path.is_dir()
+        && path
+            .extension()
+            .map(|ext| ext.eq_ignore_ascii_case("app"))
+            .unwrap_or(false)
+}
+
 fn find_executable(root: &Path) -> Option<PathBuf> {
     let entries = std::fs::read_dir(root).ok()?;
+    let mut fallback: Option<PathBuf> = None;
+
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_file() {
@@ -219,8 +276,14 @@ fn find_executable(root: &Path) -> Option<PathBuf> {
         if EXE_NAMES.contains(&name.as_str()) {
             return Some(path);
         }
+        // `.app` 包里的启动器名字千奇百怪（Java 打包常见 `JavaApplicationStub`），
+        // 名字对不上时退而求其次：包内第一个可执行文件。
+        if fallback.is_none() && name.starts_with("javaapplicationstub") {
+            fallback = Some(path);
+        }
     }
-    None
+
+    fallback
 }
 
 fn is_writable(dir: &Path) -> bool {
@@ -365,14 +428,35 @@ fn quoted_values(line: &str) -> Vec<&str> {
 fn portable_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
-    if let Some(base) = std::env::var_os("ProgramFiles(x86)") {
-        candidates.push(PathBuf::from(base).join("Rusted Warfare"));
+    #[cfg(windows)]
+    {
+        if let Some(base) = std::env::var_os("ProgramFiles(x86)") {
+            candidates.push(PathBuf::from(base).join("Rusted Warfare"));
+        }
+        if let Some(base) = std::env::var_os("ProgramFiles") {
+            candidates.push(PathBuf::from(base).join("Rusted Warfare"));
+        }
+        candidates.push(PathBuf::from(r"C:\Rusted Warfare"));
     }
-    if let Some(base) = std::env::var_os("ProgramFiles") {
-        candidates.push(PathBuf::from(base).join("Rusted Warfare"));
-    }
-    candidates.push(PathBuf::from(r"C:\Rusted Warfare"));
+
     candidates.push(paths::home_dir().join("Rusted Warfare"));
+
+    // macOS 上用户自己拖到「应用程序」或桌面的也很常见
+    // （Steam 装的由 `steam_libraries()` 覆盖）
+    #[cfg(target_os = "macos")]
+    {
+        let home = paths::home_dir();
+        candidates.push(home.join("Applications").join("Rusted Warfare.app"));
+        candidates.push(home.join("Desktop").join("Rusted Warfare.app"));
+    }
+
+    // Linux 上 Steam 与免安装各有各的习惯目录
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let home = paths::home_dir();
+        candidates.push(home.join("Games").join("Rusted Warfare"));
+        candidates.push(home.join(".local").join("share").join("Rusted Warfare"));
+    }
 
     candidates
 }
@@ -428,6 +512,54 @@ mod tests {
         let b = instance_id(&dir);
         assert_eq!(a, b);
         assert!(a.starts_with("rw-"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Linux / Steam 的原生二进制没有扩展名，靠名字命中。
+    #[test]
+    fn finds_extensionless_binary() {
+        let dir = temp_dir("linux-bin");
+        std::fs::write(dir.join("RustedWarfare"), b"\x7fELF").expect("写文件");
+        let probe = Instance::probe(&dir).expect("探测");
+        assert!(probe.is_playable());
+        assert_eq!(
+            probe.exe.as_deref().and_then(|path| path.file_name()),
+            Some(std::ffi::OsStr::new("RustedWarfare"))
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// macOS：`.app` 是目录，根目录必须换算到包内的 `Contents/MacOS`，
+    /// 否则既 spawn 不了，`mods/units` 也会挂到包外面去。
+    #[test]
+    fn resolves_macos_bundle_inside_game_dir() {
+        let dir = temp_dir("mac-bundle");
+        let macos = dir
+            .join("Rusted Warfare.app")
+            .join("Contents")
+            .join("MacOS");
+        std::fs::create_dir_all(&macos).expect("建包目录");
+        std::fs::write(macos.join("Rusted Warfare"), b"#!/bin/sh\n").expect("写二进制");
+
+        let probe = Instance::probe(&dir).expect("探测");
+        assert!(probe.is_playable());
+        assert_eq!(probe.root, macos);
+        assert_eq!(probe.mods_dir, macos.join("mods"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// macOS：用户直接选中 `.app` 本身（文件选择器返回的就是包路径）。
+    #[test]
+    fn resolves_macos_bundle_from_bundle_path() {
+        let dir = temp_dir("mac-bundle-pick");
+        let app = dir.join("Rusted Warfare.app");
+        let macos = app.join("Contents").join("MacOS");
+        std::fs::create_dir_all(&macos).expect("建包目录");
+        std::fs::write(macos.join("JavaApplicationStub"), b"#!/bin/sh\n").expect("写二进制");
+
+        let probe = Instance::probe(&app).expect("探测");
+        assert!(probe.is_playable());
+        assert_eq!(probe.root, macos);
         let _ = std::fs::remove_dir_all(dir);
     }
 }

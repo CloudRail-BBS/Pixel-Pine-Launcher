@@ -12,16 +12,20 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
 use axum::Router;
 use sqlx::PgPool;
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
+use crate::auth::LoginGuard;
 use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub config: Config,
+    /// 后台登录失败计数。进程内共享，四个 axum 线程看到同一份。
+    pub login_guard: Arc<LoginGuard>,
 }
 
 /// 请求体上限：比单包上限略大，留出 multipart 边界的余量。
@@ -60,6 +64,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/packages/{id}/versions", post(upload::upload_version))
         .route("/v1/packages/{id}/submit", post(upload::submit))
         // 审核侧
+        .route("/v1/admin/login", post(admin::login))
         .route("/v1/admin/queue", get(admin::queue))
         .route("/v1/admin/packages/{id}/approve", post(admin::approve))
         .route("/v1/admin/packages/{id}/reject", post(admin::reject))

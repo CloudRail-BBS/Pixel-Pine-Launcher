@@ -43,6 +43,8 @@ services:
       PPL_JWT_SECRET: ${PPL_JWT_SECRET:-}
       PPL_JWT_TTL_HOURS: ${PPL_JWT_TTL_HOURS:-168}
       PPL_ADMIN_EMAIL: ${PPL_ADMIN_EMAIL:-}
+      # 后台密码：不配则 /v1/admin/login 直接 503，后台进不去
+      PPL_ADMIN_PASSWORD: ${PPL_ADMIN_PASSWORD:-}
       PPL_SMTP_HOST: ${PPL_SMTP_HOST:-}
       PPL_SMTP_PORT: ${PPL_SMTP_PORT:-465}
       PPL_SMTP_USER: ${PPL_SMTP_USER:-}

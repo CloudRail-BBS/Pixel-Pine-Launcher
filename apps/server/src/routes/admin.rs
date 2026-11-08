@@ -1,17 +1,141 @@
-//! 审核侧：队列、通过、驳回。
+//! 审核侧：登录、队列、通过、驳回。
 //!
 //! 每个动作都写审计日志——UGC 一旦出事，「谁在什么时候放过的」是唯一能自证的东西。
 
-use axum::extract::{Path, State};
+use std::net::SocketAddr;
+
+use axum::extract::{ConnectInfo, Path, State};
+use axum::http::HeaderMap;
 use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use super::auth::normalize_email;
 use super::upload::audit;
 use super::AppState;
-use crate::auth::AuthUser;
+use crate::auth::{issue_token, verify_password, AuthUser, User};
 use crate::error::ApiError;
+
+#[derive(Debug, Deserialize)]
+pub struct LoginBody {
+    /// 管理员邮箱。留空则用服务端配置的 `PPL_ADMIN_EMAIL`。
+    #[serde(default)]
+    pub email: String,
+    pub password: String,
+}
+
+/// 后台登录：邮箱 + 密码，成功返回和普通用户同一种 JWT。
+///
+/// 为什么不用验证码：后台能下架资源、发公告，等于整站的最高权限。
+/// 验证码的安全性上限是「谁能收到那个邮箱的信」，
+/// 而密码可以单独换、单独限流、单独泄露追责。
+pub async fn login(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<LoginBody>,
+) -> Result<Json<Value>, ApiError> {
+    let Some(stored) = state.config.admin_password.as_deref() else {
+        // 没配密码就不开放这个入口，而不是退回验证码——
+        // 否则「忘了配」会静默变成「后台没密码」
+        return Err(ApiError::unavailable(
+            "服务端未配置后台密码（PPL_ADMIN_PASSWORD），后台登录已停用",
+        ));
+    };
+
+    let source = client_key(&headers, peer);
+    if let Some(seconds) = state.login_guard.lock_remaining(&source) {
+        return Err(ApiError::too_many(format!(
+            "密码错误次数过多，{seconds} 秒后再试"
+        )));
+    }
+
+    let raw_email = if body.email.trim().is_empty() {
+        state.config.admin_email.clone().unwrap_or_default()
+    } else {
+        body.email.clone()
+    };
+
+    // 密码先比、再判邮箱，两条都要走完：
+    // 如果「邮箱不对」可以提前返回，响应快慢本身就泄露了哪个邮箱是真的
+    let password_ok = verify_password(stored, &body.password);
+    let email = match (
+        normalize_email(&raw_email),
+        state.config.admin_email.as_deref(),
+    ) {
+        (Ok(email), Some(admin)) if admin.eq_ignore_ascii_case(&email) => email,
+        // 没配 PPL_ADMIN_EMAIL 时，用登录时填的邮箱当管理员账号
+        (Ok(email), None) => email,
+        _ => String::new(),
+    };
+
+    if !password_ok || email.is_empty() {
+        state.login_guard.record_failure(&source);
+        audit(
+            &state,
+            None,
+            "admin.login_failed",
+            if email.is_empty() { "unknown" } else { &email },
+            json!({ "source": source }),
+        )
+        .await;
+        // 不区分「邮箱不对」和「密码不对」：那是送给爆破者的一半答案
+        return Err(ApiError::unauthorized("账号或密码不对"));
+    }
+
+    state.login_guard.record_success(&source);
+
+    let display_name = email.split('@').next().unwrap_or("admin").to_string();
+    let user: User = sqlx::query_as(
+        "INSERT INTO users (email, display_name, role, last_login_at)
+         VALUES ($1, $2, 'admin', now())
+         ON CONFLICT (email) DO UPDATE
+         SET last_login_at = now(), role = 'admin'
+         RETURNING id, email, display_name, role",
+    )
+    .bind(&email)
+    .bind(&display_name)
+    .fetch_one(&state.pool)
+    .await?;
+
+    audit(
+        &state,
+        Some(user.id),
+        "admin.login",
+        &email,
+        json!({ "source": source }),
+    )
+    .await;
+
+    let token = issue_token(&state.config, &user)?;
+    tracing::info!(%email, %source, "后台登录成功");
+
+    Ok(Json(json!({
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.display_name,
+            "role": user.role,
+        }
+    })))
+}
+
+/// 限流用的来源标识。
+///
+/// 线上走反向代理，`ConnectInfo` 里是 nginx 自己的地址，那样所有人共用一个
+/// 计数器——既锁不住攻击者，又能把管理员锁在门外。所以优先取
+/// `X-Forwarded-For` 的第一跳（最左边的客户端地址）。
+fn client_key(headers: &HeaderMap, peer: SocketAddr) -> String {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| peer.ip().to_string())
+}
 
 #[derive(Debug, sqlx::FromRow)]
 struct QueueRow {

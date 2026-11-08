@@ -36,6 +36,12 @@ pub struct Config {
     pub dev_mode: bool,
     /// 首个管理员邮箱，首次登录时自动提权。
     pub admin_email: Option<String>,
+    /// 审核后台密码。
+    ///
+    /// 配了它，后台就只能用密码登录，邮箱验证码也不再自动提权——
+    /// 否则「拿到管理员邮箱的验证码」等于绕过密码。
+    /// 值是明文或 `pbkdf2-sha256$…` 哈希（见 `auth::verify_password`）。
+    pub admin_password: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -115,6 +121,9 @@ impl Config {
             smtp,
             dev_mode,
             admin_email: env::var("PPL_ADMIN_EMAIL").ok().filter(|v| !v.is_empty()),
+            admin_password: env::var("PPL_ADMIN_PASSWORD")
+                .ok()
+                .filter(|v| !v.is_empty()),
         }
     }
 

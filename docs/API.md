@@ -217,7 +217,36 @@ draft ──submit──▶ pending ──approve──▶ published
 
 ## 四、审核
 
-需要 `role = admin`。第一个管理员由 `PPL_ADMIN_EMAIL` 指定，用该邮箱登录即自动提权。
+需要 `role = admin` 的 token。**后台不走验证码，走密码**：
+
+```
+POST /v1/admin/login   { "email": "you@example.com", "password": "……" }
+→ 200 { "token": "…", "user": { "id", "email", "name", "role": "admin" } }
+→ 401 账号或密码不对
+→ 429 密码错误次数过多，N 秒后再试（同一来源连续 5 次失败锁 15 分钟）
+→ 503 服务端未配置后台密码（PPL_ADMIN_PASSWORD）
+```
+
+`email` 留空时用服务端配置的 `PPL_ADMIN_EMAIL`；配了 `PPL_ADMIN_EMAIL` 就必须与它一致。
+拿到的是和普通用户同一种 JWT，权限靠 `role` 区分。
+
+> 一旦配置了 `PPL_ADMIN_PASSWORD`，**邮箱验证码登录不再带管理员角色**，
+> 数据库里的管理员账号仍是 `admin`，但用验证码登录发出的 token 只有 `user` 权限。
+> 否则「能收到那个邮箱的信」就等于绕过密码。
+
+密码两种存法，都写在 `PPL_ADMIN_PASSWORD` 里：
+
+| 形式 | 说明 |
+|---|---|
+| `pbkdf2-sha256:<迭代>:<salt hex>:<hash hex>` | 推荐，配置泄露不等于密码泄露 |
+| 明文 | 图省事的小部署；建议随机 24 位以上 |
+
+生成哈希（Node 一行，仓库本来就依赖 Node）：
+
+```bash
+# 分隔符是冒号不是 $：这个值要过 .env / compose / shell 三层，$ 会被当变量展开
+node -e 'const c=require("crypto"),p=process.argv[1],s=c.randomBytes(16),i=120000;console.log("pbkdf2-sha256:"+i+":"+s.toString("hex")+":"+c.pbkdf2Sync(p,s,i,32,"sha256").toString("hex"))' '你的密码'
+```
 
 ```
 GET  /v1/admin/queue
@@ -278,5 +307,6 @@ GET /files/{slug}/{version}.rwmod
 | `PPL_PUBLIC_BASE` | 反代后下载链接仍是内网地址，客户端下不动 |
 | `PPL_SMTP_*` | 验证码发不出去，注册直接失败（除非开 dev 模式） |
 | `PPL_GEETEST_*` | 注册不校验人机，可被脚本刷验证码 |
-| `PPL_ADMIN_EMAIL` | 没有管理员，审核队列永远无人处理 |
+| `PPL_ADMIN_EMAIL` | 没有管理员账号，后台登不进去 |
+| `PPL_ADMIN_PASSWORD` | 后台密码登录整个停用（`/v1/admin/login` 返回 503）；邮箱验证码可以提权，但那是弱得多的门槛 |
 | `PPL_DEV_MODE=1` | **生产事故**：任何人都能拿到验证码登录任意邮箱 |

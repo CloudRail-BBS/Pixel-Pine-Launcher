@@ -46,7 +46,7 @@ export default function App() {
       .then((me) => {
         if (me.role !== "admin") {
           api.setToken(null);
-          setError("这个账号没有审核权限，用管理员邮箱登录");
+          setError("这个账号没有审核权限，请用管理员账号登录");
           return;
         }
         setUser({

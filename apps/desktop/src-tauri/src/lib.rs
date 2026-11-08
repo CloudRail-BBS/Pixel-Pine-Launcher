@@ -737,6 +737,18 @@ fn games_root() -> String {
     ppl_core::games_root().to_string_lossy().into_owned()
 }
 
+/// 推荐的游戏安装目录（`<数据根>/games/Rusted Warfare`）。
+///
+/// 在 Rust 侧拼路径，是因为分隔符得按平台来：
+/// 前端自己拼会在 Linux / macOS 上拼出 `.../games\Rusted Warfare` 这种混合分隔符。
+#[tauri::command]
+fn suggested_game_dir() -> String {
+    ppl_core::games_root()
+        .join("Rusted Warfare")
+        .to_string_lossy()
+        .into_owned()
+}
+
 /// 用系统默认浏览器打开一个链接。
 ///
 /// 不用插件是因为只需要「打开」一件事；而且插件会把 URL 处理
@@ -794,6 +806,7 @@ pub fn run() {
             fetch_game_catalog,
             install_game_from_url,
             games_root,
+            suggested_game_dir,
             open_url,
             scan_extensions,
             import_extension,

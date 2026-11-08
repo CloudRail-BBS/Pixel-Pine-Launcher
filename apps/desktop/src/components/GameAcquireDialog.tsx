@@ -228,7 +228,9 @@ export function GameAcquireDialog({
       ) : (
         <div className="acquire-body">
           <p className="modal-desc" style={{ margin: "0 0 10px" }}>
-            选一个含 <code>Rusted Warfare.exe</code> 的 zip。解压前会检查路径穿越与符号链接。
+            选一个含游戏可执行文件的 zip（Windows 是 <code>Rusted Warfare.exe</code>，
+            macOS / Linux 是同名可执行文件或 <code>.app</code> 包）。
+            解压前会检查路径穿越与符号链接。
           </p>
           <div className="acquire-pick">
             <button

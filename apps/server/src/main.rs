@@ -58,11 +58,17 @@ async fn main() -> anyhow::Result<()> {
     if config.dev_mode {
         tracing::warn!("PPL_DEV_MODE 已开启，验证码会随响应返回，生产环境必须关闭");
     }
+    if config.admin_password.is_none() {
+        tracing::warn!(
+            "未配置 PPL_ADMIN_PASSWORD，审核后台无法用密码登录（邮箱验证码仍可提权，建议尽快配置）"
+        );
+    }
 
     let addr = format!("{}:{}", config.host, config.port);
     let state = AppState {
         pool,
         config: config.clone(),
+        login_guard: std::sync::Arc::new(auth::LoginGuard::default()),
     };
     let app = routes::router(state);
 
@@ -73,9 +79,13 @@ async fn main() -> anyhow::Result<()> {
         "PPL 服务端已启动"
     );
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    // 带上对端地址：后台登录限流要按来源 IP 计数
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await?;
 
     tracing::info!("服务已停止");
     Ok(())

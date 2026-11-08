@@ -2637,7 +2637,7 @@ dependencies = [
 
 [[package]]
 name = "ppl-desktop"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "ppl-core",
  "reqwest 0.12.28",

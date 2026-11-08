@@ -16,25 +16,58 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-推 tag 会触发 `.github/workflows/release.yml`：
+推 tag 会触发 `.github/workflows/release.yml`，一条矩阵出四个平台的包：
 
 ```
-windows-latest
-  ├─ npm ci
-  ├─ tauri build --bundles nsis
-  │    ├─ Pixel-Pine-Launcher_0.1.0_x64-setup.exe      安装包
-  │    └─ Pixel-Pine-Launcher_0.1.0_x64-setup.exe.sig  更新签名
-  └─ 创建 Release（prerelease=true）并上传产物 + latest.json
+verify  ── 校验标签 / 版本号 / 说明文件
+   │
+   ├─ Windows x64   windows-latest   nsis
+   │    Pixel-Pine-Launcher_0.1.2_x64-setup.exe (+ .sig)
+   ├─ Linux x64     ubuntu-22.04     deb, appimage
+   │    pixel-pine-launcher_0.1.2_amd64.deb
+   │    Pixel-Pine-Launcher_0.1.2_amd64.AppImage (+ .AppImage.tar.gz + .sig)
+   ├─ macOS arm64   macos-latest     app, dmg（原生 arm64）
+   │    Pixel-Pine-Launcher_0.1.2_aarch64.dmg
+   │    Pixel-Pine-Launcher_0.1.2_aarch64.app.tar.gz (+ .sig)
+   └─ macOS x64     macos-latest     app, dmg（交叉编译 x86_64）
+        Pixel-Pine-Launcher_0.1.2_x64.dmg
+        Pixel-Pine-Launcher_0.1.2_x64.app.tar.gz (+ .sig)
+   │
+publish ── 汇总产物 → 生成 latest.json → 创建 Release（prerelease=true）
 ```
+
+几个刻意的选择：
+
+- **`verify` 单独一个任务**：四个构建任务各自跑十分钟才因标签写错失败，太浪费。
+- **`fail-fast: false`**：Linux 少个 webkit 依赖不该让 Windows 的包也发不出去。
+  但 `publish` 依赖整个矩阵，任一平台失败就不发——半个平台齐的版本比不发更糟。
+- **发版集中在一个 `publish` 任务**：四个平台各自动手 `gh release create` 会互相
+  覆盖，尤其是 `latest.json` 被后完成的那个整份重写，结果某个平台永远收不到更新，
+  而且不报错。所以各平台只上传 artifact，最后一个任务统一拼。
+- **Linux 固定 `ubuntu-22.04`**：glibc 版本由构建机决定，24.04 上打的包在 22.04
+  及更老的发行版直接报 `GLIBC_2.39 not found`。
+- **两个 macOS 都在 arm64 机器上跑**：`macos-13` 是最后一批 Intel 镜像，迟早下线，
+  交叉编译到 `x86_64-apple-darwin` 更稳。
+
+### 产物对照
+
+| 平台 | 给用户下载 | 更新用（latest.json 里引用） |
+|---|---|---|
+| Windows | `*-setup.exe` | `*-setup.exe` |
+| Linux | `.AppImage` / `.deb` | `.AppImage.tar.gz` |
+| macOS | `.dmg` | `.app.tar.gz` |
+
+`.sig` 是 minisign 签名，只有客户端更新时会校验，别删。
 
 **只有打版本标签才会打包**：普通提交只跑 CI（fmt / clippy / test），
 不产物、不发 Release——避免每推一次代码就多一个「看起来能用」的安装包。
 
-workflow 第一步会校验三件事，任一不符直接失败：
+`verify` 任务会校验四件事，任一不符直接失败：
 
 - 标签形如 `vX.Y.Z`
 - `v` 后面的部分等于 `tauri.conf.json` 的 `version`
 - `tauri.conf.json` 与 `package.json` 的 `version` 一致
+- `docs/RELEASE_NOTES.md` 存在（Release 说明和 `latest.json` 的 `notes` 都从它取）
 
 这条校验不是为了规范，而是护栏：自动更新按版本号比大小，
 发错版本号的安装包会让用户永远收不到后续更新。
@@ -86,20 +119,47 @@ docker compose exec -T server sh -c 'mkdir -p /data/packages/launcher'
 docker cp latest.json $(docker compose ps -q server):/data/packages/launcher/latest.json
 ```
 
-`latest.json` 的格式（tauri-action 自动生成，不需要手写）：
+`latest.json` 由 `scripts/make-latest-json.mjs` 从产物文件名 + `.sig` 拼出来，
+不需要手写：
 
 ```json
 {
-  "version": "0.2.0",
-  "notes": "更新说明",
+  "version": "0.1.2",
+  "notes": "更新说明（取自 docs/RELEASE_NOTES.md）",
   "pub_date": "2026-11-08T05:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "……",
-      "url": "https://github.com/…/Pixel-Pine-Launcher_0.2.0_x64-setup.exe"
+      "url": "https://github.com/…/Pixel-Pine-Launcher_0.1.2_x64-setup.exe"
+    },
+    "linux-x86_64": {
+      "signature": "……",
+      "url": "https://github.com/…/Pixel-Pine-Launcher_0.1.2_amd64.AppImage.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "……",
+      "url": "https://github.com/…/Pixel-Pine-Launcher_0.1.2_aarch64.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "……",
+      "url": "https://github.com/…/Pixel-Pine-Launcher_0.1.2_x64.app.tar.gz"
     }
   }
 }
+```
+
+平台键必须和 Tauri updater 的命名对齐：`windows-x86_64` / `linux-x86_64` /
+`darwin-aarch64` / `darwin-x86_64`。脚本里少任何一个平台都会直接报错退出——
+静默漏一个平台，等于那个平台的用户永远停在旧版本，而且没人会发现。
+
+本地可以拿假产物验证脚本（不联网）：
+
+```bash
+mkdir -p /tmp/dist && cd /tmp/dist
+touch Pixel-Pine-Launcher_0.1.2_x64-setup.exe{,.sig}       Pixel-Pine-Launcher_0.1.2_amd64.AppImage.tar.gz{,.sig}       Pixel-Pine-Launcher_0.1.2_aarch64.app.tar.gz{,.sig}       Pixel-Pine-Launcher_0.1.2_x64.app.tar.gz{,.sig}
+printf sig > Pixel-Pine-Launcher_0.1.2_x64-setup.exe.sig   # 四个 .sig 都写点内容
+cd - && node scripts/make-latest-json.mjs --dir /tmp/dist \
+  --version 0.1.2 --tag v0.1.2 --repo CloudRail-BBS/Pixel-Pine-Launcher --out /tmp/dist/latest.json
 ```
 
 **没放文件时服务端返回 204**，客户端把 204 当作「暂无更新」静默跳过，

@@ -39,18 +39,6 @@ export interface ReportItem {
   packageStatus: string;
 }
 
-export interface AuthConfig {
-  geetestId: string | null;
-  devMode: boolean;
-}
-
-export interface GeetestResult {
-  lot_number: string;
-  captcha_output: string;
-  pass_token: string;
-  gen_time: string;
-}
-
 /** 空字符串表示「同源」——后台由服务端自己托管时用它，换域名不用改配置。 */
 export function apiBase(): string {
   const saved = localStorage.getItem(BASE_KEY)?.trim();
@@ -110,7 +98,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (response.status === 401) {
     setToken(null);
-    throw new ApiError(401, "登录已过期，请重新验证邮箱");
+    throw new ApiError(401, "登录已过期，请重新登录");
   }
 
   const text = await response.text();
@@ -134,29 +122,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export function authConfig(): Promise<AuthConfig> {
-  return request<AuthConfig>("/v1/auth/config");
-}
-
-export function requestCode(
+/** 后台登录：邮箱 + 密码。成功时 token 由调用方写入（见 `setToken`）。 */
+export function login(
   email: string,
-  geetest?: GeetestResult | null,
-): Promise<{ ok: boolean; delivery: string; devCode?: string }> {
-  return request("/v1/auth/email/request", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, geetest: geetest ?? undefined }),
-  });
-}
-
-export function verifyCode(
-  email: string,
-  code: string,
+  password: string,
 ): Promise<{ token: string; user: AdminUser }> {
-  return request("/v1/auth/email/verify", {
+  return request("/v1/admin/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, code }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -202,58 +176,6 @@ export function takedown(packageId: string, note: string): Promise<{ ok: boolean
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ note }),
-  });
-}
-
-/** 极验 4.0 SDK 是按需加载的：没启用验证的实例不该多拉 100KB 脚本。 */
-interface GeetestInstance {
-  appendTo: (target: HTMLElement | string) => void;
-  onSuccess: (callback: () => void) => void;
-  onError: (callback: (error: unknown) => void) => void;
-  getValidate: () => GeetestResult | null;
-}
-
-declare global {
-  interface Window {
-    initGeetest4?: (
-      config: Record<string, unknown>,
-      callback: (captcha: GeetestInstance) => void,
-    ) => void;
-  }
-}
-
-let geetestLoading: Promise<void> | null = null;
-
-function loadGeetestSdk(): Promise<void> {
-  if (window.initGeetest4) return Promise.resolve();
-  if (geetestLoading) return geetestLoading;
-
-  geetestLoading = new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://static.geetest.com/v4/gt4.js";
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("人机验证脚本加载失败，检查网络后重试"));
-    document.head.appendChild(script);
-  });
-  return geetestLoading;
-}
-
-/** 在容器里渲染极验按钮，验证成功时把结果交回来。 */
-export async function mountGeetest(
-  captchaId: string,
-  container: HTMLElement,
-  onSuccess: (result: GeetestResult) => void,
-): Promise<void> {
-  await loadGeetestSdk();
-  if (!window.initGeetest4) throw new Error("人机验证初始化失败");
-
-  window.initGeetest4({ captchaId, product: "bind", language: "zho" }, (captcha) => {
-    captcha.appendTo(container);
-    captcha.onSuccess(() => {
-      const result = captcha.getValidate();
-      if (result) onSuccess(result);
-    });
   });
 }
 

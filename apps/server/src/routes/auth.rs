@@ -156,12 +156,17 @@ pub async fn verify_code(
         .execute(&state.pool)
         .await?;
 
-    // 邮箱没出现过就自动注册；首个管理员在登录时提权
-    let is_admin_email = state
-        .config
-        .admin_email
-        .as_deref()
-        .is_some_and(|admin| admin.eq_ignore_ascii_case(&email));
+    // 邮箱没出现过就自动注册；首个管理员在登录时提权。
+    //
+    // 但配了后台密码之后就不再提权：否则「能收到这个邮箱的信」等于绕过密码，
+    // 密码登录就白做了。这时候管理员只能走 /v1/admin/login。
+    let promote_admin = state.config.admin_password.is_none();
+    let is_admin_email = promote_admin
+        && state
+            .config
+            .admin_email
+            .as_deref()
+            .is_some_and(|admin| admin.eq_ignore_ascii_case(&email));
     let display_name = email.split('@').next().unwrap_or(&email).to_string();
 
     let user: User = sqlx::query_as(
@@ -178,7 +183,20 @@ pub async fn verify_code(
     .fetch_one(&state.pool)
     .await?;
 
-    let token = issue_token(&state.config, &user)?;
+    // 配了后台密码之后，验证码登录发出去的 token 不带管理员角色：
+    // 否则「能收到这个邮箱的信」就绕过了密码，密码登录等于白做。
+    // 数据库里的角色不动——管理员改用密码登录时再拿回权限，
+    // 客户端该有的作者功能也不受影响。
+    let role = if state.config.admin_password.is_some() && user.role == "admin" {
+        "user".to_string()
+    } else {
+        user.role.clone()
+    };
+    let effective = User {
+        role: role.clone(),
+        ..user.clone()
+    };
+    let token = issue_token(&state.config, &effective)?;
 
     Ok(Json(json!({
         "token": token,
@@ -186,7 +204,7 @@ pub async fn verify_code(
             "id": user.id,
             "email": user.email,
             "name": user.display_name,
-            "role": user.role,
+            "role": role,
         }
     })))
 }
@@ -200,7 +218,7 @@ pub async fn me(user: AuthUser) -> Json<Value> {
     }))
 }
 
-fn normalize_email(raw: &str) -> Result<String, ApiError> {
+pub(crate) fn normalize_email(raw: &str) -> Result<String, ApiError> {
     let email = raw.trim().to_lowercase();
     let valid = email.len() >= 5
         && email.len() <= 254

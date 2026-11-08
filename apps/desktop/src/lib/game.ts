@@ -56,15 +56,27 @@ export function setGameSource(value: string): string {
   return next || OFFICIAL_GAME_SOURCE;
 }
 
+/** 当前平台。桌面端由 Rust 给（`fetch_game_catalog` 的返回里带着），
+ * 浏览器预览里只能自己猜——猜错的后果仅限筛错了清单条目。 */
+export function runtimePlatform(): string {
+  if (typeof navigator === "undefined") return "windows";
+  const agent = navigator.userAgent.toLowerCase();
+  if (agent.includes("mac os")) return "macos";
+  if (agent.includes("android")) return "android";
+  if (agent.includes("linux")) return "linux";
+  return "windows";
+}
+
 /** 拉版本清单。浏览器预览里直接 fetch，桌面端走 Rust（避开跨域与混合内容）。 */
 export async function fetchCatalog(source = gameSource()): Promise<GameCatalog> {
   if (isTauri()) {
     return invoke<GameCatalog>("fetch_game_catalog", { url: source });
   }
 
+  const platform = runtimePlatform();
   const response = await fetch(source, { headers: { accept: "application/json" } });
   if (response.status === 204) {
-    return { platform: "windows", channels: [], versions: [] };
+    return { platform, channels: [], versions: [] };
   }
   if (!response.ok) throw new Error(`版本清单返回 ${response.status}`);
 
@@ -72,12 +84,12 @@ export async function fetchCatalog(source = gameSource()): Promise<GameCatalog> 
     versions?: GameVersion[];
   };
   const versions = (body.versions ?? []).filter(
-    (item) => item.platform === "windows" && item.urls?.length > 0,
+    (item) => item.platform === platform && item.urls?.length > 0,
   );
   versions.sort((a, b) => compare(b.version, a.version));
 
   const channels = Array.from(new Set(versions.map((item) => item.channel))).sort();
-  return { platform: "windows", channels, versions };
+  return { platform, channels, versions };
 }
 
 function compare(a: string, b: string): number {
@@ -94,11 +106,12 @@ function compare(a: string, b: string): number {
   return 0;
 }
 
-/** 推荐安装目录：`<数据根>/games/Rusted Warfare`。 */
+/** 推荐安装目录：`<数据根>/games/Rusted Warfare`。
+ *
+ * 分隔符由 Rust 决定——在 Linux / macOS 上自己拼 `\` 会得到一个不存在的路径。 */
 export async function suggestedTarget(): Promise<string> {
   if (!isTauri()) return "Rusted Warfare";
-  const root = await invoke<string>("games_root");
-  return `${root}\\Rusted Warfare`;
+  return invoke<string>("suggested_game_dir");
 }
 
 export interface GameInstall {

@@ -78,6 +78,25 @@ https://你的域名/admin/
 - 静态目录由 `PPL_ADMIN_DIR` 指定，镜像内默认 `/app/admin`
 - 后台默认同源访问 API，换域名不用改配置；要连别的实例再手动填地址
 
+**登录方式：邮箱 + 密码**，需要在 `.env` 里配两项：
+
+```bash
+PPL_ADMIN_EMAIL=you@example.com
+# 推荐存哈希而不是明文（命令见 .env.example），两者都认
+PPL_ADMIN_PASSWORD=pbkdf2-sha256:120000:<salt>:<hash>
+```
+
+改完 `docker compose up -d` 让容器读到新环境变量。没配 `PPL_ADMIN_PASSWORD` 时
+后台登录会直接提示「未配置」并拒绝——不会悄悄退回验证码登录。
+
+> 配了密码之后，**邮箱验证码登录不再带管理员角色**。
+> 数据库里的账号还是 `admin`，但用验证码登录拿到的 token 只有 `user` 权限；
+> 想进后台只能走 `/admin/` 的密码登录。
+> 这条是为了防「邮箱被人拿到 = 后台被接管」。
+>
+> 连续 5 次密码错误会锁 15 分钟，按来源 IP 计。走反代时记得让 nginx 透传
+> `X-Forwarded-For`，否则所有请求会被当成同一个来源（锁一个人等于锁全部）。
+
 ### 1.5 验证
 
 ```bash
