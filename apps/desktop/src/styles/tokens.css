@@ -1,65 +1,74 @@
 /* 设计 token —— 单一来源，组件不写死颜色与圆角。
    深浅两套主题只换变量，不改组件。
 
-   配色：蓝白。主色取 Apple 系统蓝，浅色是白卡浮在淡蓝画布上，
-   深色是蓝黑而不是中性灰——同一套蓝色在两档里都保持「冷」的调性。 */
+   配色取自云轨社区（crbbsx.com）：主按钮是近黑 / 近白，蓝色只做点缀。
+   这比「满屏蓝」克制，也让强调色真的成为强调。 */
 
 :root {
   /* 画布与层级 */
-  --bg: #0a0f1a;
-  --bg-elev: #121a29;
-  --bg-elev-2: #192335;
-  --bg-elev-3: #212e44;
+  --bg: #0a0a0b;
+  --bg-elev: #121214;
+  --bg-elev-2: #17171a;
+  --bg-elev-3: #1d1d21;
 
-  /* 交互覆盖层：hover / 选中 / 按钮底色 */
+  /* 交互覆盖层 */
   --hover: rgba(255, 255, 255, 0.05);
   --hover-strong: rgba(255, 255, 255, 0.09);
-  --badge-bg: rgba(255, 255, 255, 0.07);
-  --switch-off: rgba(255, 255, 255, 0.14);
+  --badge-bg: rgba(255, 255, 255, 0.06);
+  --switch-off: #3a3a40;
   --knob: #ffffff;
 
   /* 描边 */
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
+  --line: #26262b;
+  --line-strong: #3a3a40;
 
   /* 文本 */
-  --text: #e9eef7;
-  --text-2: #9aa7bd;
-  --text-3: #6b7891;
+  --text: #f4f4f5;
+  --text-2: #c4c4c8;
+  --text-3: #6f6f78;
+
+  /* 主色（用于开关、选中、链接这类「强调」） */
+  --accent: #7fb0ff;
+  --accent-soft: rgba(127, 176, 255, 0.14);
+  --accent-line: rgba(127, 176, 255, 0.34);
+  --accent-ink: #0a0a0b;
+
+  /* 主按钮：近白渐变，深色主题下这是最亮的元素 */
+  --btn-bg: linear-gradient(180deg, #fafafa, #e4e4e7);
+  --btn-bg-hover: linear-gradient(180deg, #ffffff, #ededf0);
+  --btn-ink: #151a23;
+  --btn-bd: #ffffff;
+  --btn-glow: 0 10px 26px -18px rgba(255, 255, 255, 0.55);
 
   /* 语义色 */
-  --accent: #4c9aff;
-  --accent-soft: rgba(76, 154, 255, 0.16);
-  --accent-line: rgba(76, 154, 255, 0.4);
-  --accent-ink: #04121f;
-  --warn: #f2c14e;
-  --warn-soft: rgba(242, 193, 78, 0.14);
-  --danger: #ff6b6b;
-  --danger-soft: rgba(255, 107, 107, 0.14);
+  --ok: #4ade80;
+  --ok-soft: rgba(74, 222, 128, 0.12);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
 
-  /* 材质：玻璃要真的能透出后面的内容，所以底色比画布更淡 */
-  --glass-bg: rgb(18 26 41 / 0.55);
-  --glass-blur: 32px;
+  /* 材质 */
+  --glass-bg: rgba(16, 17, 20, 0.62);
+  --glass-blur: 20px;
   --glass-saturate: 180%;
-  /* 玻璃上边缘的一道高光，是材质感的关键；没有它只是「半透明」 */
-  --glass-hi: rgba(255, 255, 255, 0.14);
-  --panel-bg: rgb(18 26 41 / 0.82);
-  --dock-bg: rgb(26 36 54 / 0.88);
-  /* 卡片也用一层薄玻璃：透出环境光，但不至于看不清字 */
-  --card-bg: rgb(20 29 46 / 0.66);
-  --card-blur: 18px;
-  --toast-bg: rgba(42, 20, 24, 0.94);
-  --toast-text: #ffc0c0;
-  --toast-line: rgba(255, 107, 107, 0.35);
+  --glass-hi: rgba(255, 255, 255, 0.1);
+  --panel-bg: rgba(12, 13, 16, 0.72);
+  --dock-bg: rgba(12, 13, 16, 0.8);
+  --card-bg: rgba(16, 17, 20, 0.66);
+  --card-blur: 16px;
+  --toast-bg: rgba(40, 16, 16, 0.94);
+  --toast-text: #ffc9c9;
+  --toast-line: rgba(248, 113, 113, 0.35);
 
-  /* 环境光：给玻璃一点可折射的内容 */
-  --ambient-a: rgba(76, 154, 255, 0.22);
-  --ambient-b: rgba(60, 120, 220, 0.18);
-  --ambient-c: rgba(120, 200, 255, 0.12);
+  /* 环境光：玻璃要透出点东西才有质感 */
+  --ambient-a: rgba(62, 124, 255, 0.16);
+  --ambient-b: rgba(109, 79, 208, 0.12);
+  --ambient-c: rgba(127, 176, 255, 0.08);
 
-  /* 阴影 */
-  --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.36);
-  --shadow-2: 0 16px 48px rgba(0, 0, 0, 0.5);
+  /* 阴影：参考站用的是「极浅落影 + 内高光」，不是大块黑影 */
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 16px 36px -32px rgba(0, 0, 0, 0.9);
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 22px 44px -32px rgba(0, 0, 0, 1);
 
   /* 圆角 */
   --r-sm: 8px;
@@ -82,52 +91,60 @@
   color-scheme: dark;
 }
 
-/* 浅色：不是把深色反相，而是重新定一套层级关系。
-   白色玻璃卡浮在淡蓝画布上，靠阴影和极淡描边分层，而不是靠深色底。 */
+/* 浅色：白卡浮在淡灰蓝画布上，靠极淡描边与浅落影分层 */
 [data-theme="light"] {
-  --bg: #eef3fb;
+  --bg: #f3f5f9;
   --bg-elev: #ffffff;
-  --bg-elev-2: #f7faff;
-  --bg-elev-3: #e6edf8;
+  --bg-elev-2: #f6f8fc;
+  --bg-elev-3: #eaeef6;
 
-  --hover: rgba(12, 26, 48, 0.045);
-  --hover-strong: rgba(12, 26, 48, 0.075);
-  --badge-bg: rgba(12, 26, 48, 0.06);
-  --switch-off: rgba(12, 26, 48, 0.16);
+  --hover: rgba(21, 26, 35, 0.05);
+  --hover-strong: rgba(21, 26, 35, 0.08);
+  --badge-bg: rgba(21, 26, 35, 0.06);
+  --switch-off: #c3d2e4;
   --knob: #ffffff;
 
-  --line: rgba(12, 26, 48, 0.09);
-  --line-strong: rgba(12, 26, 48, 0.16);
+  --line: #e3e8f0;
+  --line-strong: #c3d2e4;
 
-  --text: #0b1524;
-  --text-2: #4a5a70;
-  --text-3: #7e8ca0;
+  --text: #151a23;
+  --text-2: #3d4757;
+  --text-3: #7b8698;
 
-  /* 浅底上用深一档的蓝，保证对比度 */
-  --accent: #0071e3;
-  --accent-soft: rgba(0, 113, 227, 0.09);
-  --accent-line: rgba(0, 113, 227, 0.28);
+  --accent: #3e7cff;
+  --accent-soft: rgba(62, 124, 255, 0.1);
+  --accent-line: rgba(62, 124, 255, 0.26);
   --accent-ink: #ffffff;
-  --warn: #a16207;
-  --warn-soft: rgba(193, 128, 10, 0.12);
-  --danger: #d13438;
-  --danger-soft: rgba(209, 52, 56, 0.1);
 
-  --glass-bg: rgb(255 255 255 / 0.55);
-  --glass-hi: rgba(255, 255, 255, 0.95);
-  --panel-bg: rgb(255 255 255 / 0.8);
-  --dock-bg: rgb(255 255 255 / 0.86);
-  --card-bg: rgb(255 255 255 / 0.58);
-  --toast-bg: rgba(253, 236, 236, 0.96);
+  /* 浅色主题下主按钮是近黑：整屏白，需要一个沉稳的动作锚点 */
+  --btn-bg: linear-gradient(180deg, #262c38, #151a23);
+  --btn-bg-hover: linear-gradient(180deg, #333a48, #1d2531);
+  --btn-ink: #ffffff;
+  --btn-bd: #151a23;
+  --btn-glow: 0 10px 24px -16px rgba(21, 26, 35, 0.45);
+
+  --ok: #0f7a46;
+  --ok-soft: rgba(16, 185, 129, 0.1);
+  --warn: #8a6100;
+  --warn-soft: rgba(217, 160, 10, 0.12);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.08);
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-hi: rgba(255, 255, 255, 0.72);
+  --panel-bg: rgba(255, 255, 255, 0.74);
+  --dock-bg: rgba(255, 255, 255, 0.82);
+  --card-bg: rgba(255, 255, 255, 0.72);
+  --toast-bg: rgba(253, 240, 240, 0.96);
   --toast-text: #9b1c20;
-  --toast-line: rgba(209, 52, 56, 0.25);
+  --toast-line: rgba(220, 38, 38, 0.22);
 
-  --ambient-a: rgba(0, 113, 227, 0.26);
-  --ambient-b: rgba(70, 160, 255, 0.2);
-  --ambient-c: rgba(130, 195, 255, 0.22);
+  --ambient-a: rgba(62, 124, 255, 0.12);
+  --ambient-b: rgba(109, 79, 208, 0.1);
+  --ambient-c: rgba(127, 176, 255, 0.1);
 
-  --shadow-1: 0 8px 24px rgba(16, 40, 80, 0.1);
-  --shadow-2: 0 16px 40px rgba(16, 40, 80, 0.14);
+  --shadow-1: 0 1px 2px rgba(21, 26, 35, 0.05), 0 8px 20px -18px rgba(21, 26, 35, 0.22);
+  --shadow-2: 0 2px 6px rgba(21, 26, 35, 0.06), 0 16px 32px -24px rgba(21, 26, 35, 0.28);
 
   color-scheme: light;
 }

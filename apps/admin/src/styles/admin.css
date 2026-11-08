@@ -80,21 +80,22 @@ textarea {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
+  background: var(--btn-bg);
+  border-color: var(--btn-bd);
+  color: var(--btn-ink);
   font-weight: 500;
+  box-shadow: var(--btn-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #46e8a2;
-  border-color: transparent;
+  background: var(--btn-bg-hover);
+  border-color: var(--btn-bd);
 }
 
 .btn-danger {
   background: var(--danger-soft);
   border-color: rgba(229, 72, 77, 0.35);
-  color: #ff9b9e;
+  color: var(--danger);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -140,7 +141,7 @@ textarea {
 
 .badge-danger {
   background: var(--danger-soft);
-  color: #ff9b9e;
+  color: var(--danger);
 }
 
 /* ---------- 登录 ---------- */
@@ -433,7 +434,7 @@ textarea {
 
 .notice-error {
   background: var(--danger-soft);
-  color: #ff9b9e;
+  color: var(--danger);
 }
 
 .notice-ok {

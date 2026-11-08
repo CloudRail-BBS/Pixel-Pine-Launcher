@@ -282,15 +282,17 @@
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: #06231a;
+  background: var(--btn-bg);
+  border-color: var(--btn-bd);
+  color: var(--btn-ink);
   font-weight: 500;
+  box-shadow: var(--btn-glow);
 }
 
-.btn-primary:hover {
-  background: #4ae8a6;
-  color: #06231a;
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+  border-color: var(--btn-bd);
+  color: var(--btn-ink);
 }
 
 .btn-ghost {
