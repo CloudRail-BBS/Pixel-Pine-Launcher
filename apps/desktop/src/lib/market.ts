@@ -8,7 +8,7 @@
  * 而跨域预检遇到 301 会直接失败，所以 http 在现代浏览器里根本走不通。
  */
 
-import type { MarketPageResult, RemotePackage } from "./types";
+import type { MarketDetail, MarketPageResult, MarketVersion, RemotePackage } from "./types";
 
 export type MarketFormat = "ppl" | "generic";
 
@@ -334,5 +334,91 @@ export async function testSource(
       count: 0,
       message: error instanceof Error ? error.message : String(error),
     };
+  }
+}
+
+/** 拉取单个资源的详情（含版本历史）。通用源没有详情接口，用列表项兜底。 */
+export async function fetchDetail(
+  id: string,
+  source: MarketSource = activeSource(),
+): Promise<MarketDetail> {
+  if (source.format === "generic") {
+    throw new Error("这个市场源没有详情接口");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(
+      `${source.base}/v1/packages/${encodeURIComponent(id)}`,
+      { signal: controller.signal, headers: { accept: "application/json" } },
+    );
+    if (response.status === 404) throw new Error("这个资源不存在或已下架");
+    if (!response.ok) throw new Error(`读取详情失败（${response.status}）`);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    const rawVersions = Array.isArray(body.versions) ? body.versions : [];
+
+    const base = normalizePackage(body);
+    if (!base) throw new Error("服务端返回的详情数据不完整");
+
+    return {
+      ...base,
+      versions: rawVersions
+        .map((item): MarketVersion | null => {
+          if (!item || typeof item !== "object") return null;
+          const row = item as Record<string, unknown>;
+          const version = typeof row.version === "string" ? row.version : null;
+          if (!version) return null;
+          return {
+            version,
+            size: typeof row.size === "number" ? row.size : 0,
+            contentHash: typeof row.contentHash === "string" ? row.contentHash : "",
+            urls: Array.isArray(row.urls)
+              ? row.urls.filter((value): value is string => typeof value === "string")
+              : [],
+            changelog: typeof row.changelog === "string" ? row.changelog : "",
+          };
+        })
+        .filter((item): item is MarketVersion => item !== null),
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("读取详情超时");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("连不上市场服务");
+    }
+    throw error instanceof Error ? error : new Error(String(error));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 举报。免登录，所以门槛要低——门槛越高坏内容活得越久。 */
+export async function reportPackage(
+  id: string,
+  reason: string,
+  contact = "",
+  source: MarketSource = activeSource(),
+): Promise<void> {
+  const response = await fetch(
+    `${source.base}/v1/packages/${encodeURIComponent(id)}/report`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ reason, contact }),
+    },
+  );
+
+  if (!response.ok) {
+    let message = `提交失败（${response.status}）`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      // 服务端没返回 JSON，用默认文案
+    }
+    throw new Error(message);
   }
 }

@@ -107,3 +107,17 @@ export interface RelaySnapshot {
   roomCount: number;
   rooms: RelayRoom[];
 }
+
+/** 一个历史版本。 */
+export interface MarketVersion {
+  version: string;
+  size: number;
+  contentHash: string;
+  urls: string[];
+  changelog: string;
+}
+
+/** 详情 = 资源本体 + 全部过审版本。 */
+export interface MarketDetail extends RemotePackage {
+  versions: MarketVersion[];
+}

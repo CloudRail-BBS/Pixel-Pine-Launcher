@@ -1374,3 +1374,167 @@
     max-width: 160px;
   }
 }
+
+/* ---------- 市场详情 ---------- */
+
+.pkg-card {
+  cursor: pointer;
+}
+
+.pkg-card:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.detail-hero {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.detail-cover {
+  aspect-ratio: 16 / 10;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.detail-info {
+  min-width: 0;
+}
+
+.detail-intro {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.detail-slug {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.detail-foot {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.version-row {
+  background: var(--card-bg);
+  padding: 12px 16px;
+}
+
+.version-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.version-tag {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.version-size {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.version-note {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-3);
+  white-space: pre-wrap;
+}
+
+/* ---------- 弹层 ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 10, 14, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  padding: 22px;
+  border-radius: var(--r-lg);
+  background: var(--panel-bg);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-2);
+}
+
+.modal-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.modal-desc {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-3);
+}
+
+.modal textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.modal textarea:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+
+.modal-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .detail-hero {
+    grid-template-columns: 1fr;
+  }
+}

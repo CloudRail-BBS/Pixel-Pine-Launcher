@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { PixelCover } from "../components/PixelCover";
 import { AlertIcon, RefreshIcon, SearchIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
+import { activeSource, fetchDetail, reportPackage } from "../lib/market";
 import type { MarketPackage } from "../lib/types";
 
 type Filter = "all" | "mod" | "map" | "installed" | "update";
@@ -34,6 +35,12 @@ export function MarketPage({
 }: MarketPageProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const opened = useMemo(
+    () => packages.find((item) => item.id === openId) ?? null,
+    [packages, openId],
+  );
 
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -50,6 +57,12 @@ export function MarketPage({
       );
     });
   }, [packages, query, filter]);
+
+  if (opened) {
+    return (
+      <DetailView item={opened} onBack={() => setOpenId(null)} onInstall={() => onInstall(opened)} />
+    );
+  }
 
   return (
     <>
@@ -116,13 +129,27 @@ export function MarketPage({
         <div className="empty">
           <div>{packages.length === 0 ? "市场还没有上架资源" : "没有匹配的资源"}</div>
           <div style={{ fontSize: 12 }}>
-            {packages.length === 0 ? "作者上传并通过审核后会出现在这里" : "换个关键词，或切换上面的筛选"}
+            {packages.length === 0
+              ? "作者上传并通过审核后会出现在这里"
+              : "换个关键词，或切换上面的筛选"}
           </div>
         </div>
       ) : (
         <div className="grid">
           {visible.map((item) => (
-            <article key={item.id} className="pkg-card">
+            <article
+              key={item.id}
+              className="pkg-card"
+              role="button"
+              tabIndex={0}
+              onClick={() => setOpenId(item.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setOpenId(item.id);
+                }
+              }}
+            >
               <div className="pkg-cover">
                 <MarketCover item={item} />
                 <div className="pkg-cover-badge">
@@ -156,7 +183,128 @@ export function MarketPage({
   );
 }
 
-/** 有封面图就用真图，加载失败退回像素封面——不至于留一块空白。 */
+/** 详情：本体信息 + 版本历史 + 举报。 */
+function DetailView({
+  item,
+  onBack,
+  onInstall,
+}: {
+  item: MarketPackage;
+  onBack: () => void;
+  onInstall: () => void;
+}) {
+  const [versions, setVersions] = useState<
+    { version: string; size: number; changelog: string }[]
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
+
+  const load = useCallback(async () => {
+    if (activeSource().format !== "ppl") {
+      setNote("这个市场源不提供版本历史");
+      return;
+    }
+    setLoading(true);
+    try {
+      const detail = await fetchDetail(item.slug);
+      setVersions(detail.versions);
+      if (detail.versions.length === 0) setNote("这只是第一个版本");
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [item.slug]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <>
+      <header className="page-head">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <button className="btn btn-sm btn-ghost" onClick={onBack}>
+            ← 返回
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <h1 className="page-title" style={{ fontSize: 20 }}>
+              {item.title}
+            </h1>
+            <p className="page-desc">
+              {item.author} · {item.kind === "mod" ? "Mod" : "地图"} · v{item.version}
+            </p>
+          </div>
+        </div>
+        <div className="head-actions">
+          <ActionButton state={item.state} onClick={onInstall} />
+        </div>
+      </header>
+
+      <div className="detail-hero">
+        <div className="detail-cover">
+          <MarketCover item={item} />
+        </div>
+        <div className="detail-info">
+          <p className="detail-intro">{item.summary || "作者没有填写简介"}</p>
+          <div className="kv">
+            <span>当前版本</span>
+            <span>v{item.version}</span>
+          </div>
+          <div className="kv">
+            <span>体积</span>
+            <span>{formatBytes(item.size)}</span>
+          </div>
+          <div className="kv">
+            <span>标识</span>
+            <span className="detail-slug">{item.slug}</span>
+          </div>
+        </div>
+      </div>
+
+      <section className="section">
+        <div className="section-title">版本历史</div>
+        {loading ? (
+          <div className="empty">正在读取…</div>
+        ) : versions.length === 0 ? (
+          <div className="empty">{note ?? "没有更多版本"}</div>
+        ) : (
+          <div className="version-list">
+            {versions.map((version, index) => (
+              <div key={version.version} className="version-row">
+                <div className="version-head">
+                  <span className="version-tag">v{version.version}</span>
+                  {index === 0 && <span className="badge badge-ok">最新</span>}
+                  <span className="version-size">{formatBytes(version.size)}</span>
+                </div>
+                {version.changelog && <div className="version-note">{version.changelog}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className="detail-foot">
+        <button className="btn btn-sm btn-ghost" onClick={() => setReporting(true)}>
+          举报这个资源
+        </button>
+      </div>
+
+      {reporting && (
+        <ReportDialog
+          title={item.title}
+          onClose={() => setReporting(false)}
+          onSubmit={async (reason, contact) => {
+            await reportPackage(item.slug, reason, contact);
+            setReporting(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function MarketCover({ item }: { item: MarketPackage }) {
   const [broken, setBroken] = useState(false);
   if (!item.cover || broken) return <PixelCover seed={item.slug} />;
@@ -178,6 +326,12 @@ function ActionButton({
   state: MarketPackage["state"];
   onClick: () => void;
 }) {
+  const handle = (event: React.MouseEvent) => {
+    // 卡片本身可点开详情，按钮必须拦住冒泡
+    event.stopPropagation();
+    onClick();
+  };
+
   if (state === "installed") {
     return (
       <button className="btn btn-sm btn-ghost" disabled>
@@ -187,14 +341,108 @@ function ActionButton({
   }
   if (state === "update") {
     return (
-      <button className="btn btn-sm" onClick={onClick}>
+      <button className="btn btn-sm" onClick={handle}>
         更新
       </button>
     );
   }
   return (
-    <button className="btn btn-sm btn-primary" onClick={onClick}>
+    <button className="btn btn-sm btn-primary" onClick={handle}>
       安装
     </button>
+  );
+}
+
+function ReportDialog({
+  title,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  onClose: () => void;
+  onSubmit: (reason: string, contact: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const [contact, setContact] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const short = reason.trim().length < 4;
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit(reason.trim(), contact.trim());
+      setDone(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      onClick={(event) => {
+        // 点遮罩关闭，但别把点击带到卡片上
+        event.stopPropagation();
+        if (!busy) onClose();
+      }}
+    >
+      <div className="modal" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">举报《{title}》</h2>
+        {done ? (
+          <>
+            <p className="modal-desc">已经收到，管理员会处理。感谢你帮忙维护市场秩序。</p>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={onClose}>
+                知道了
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="modal-desc">
+              说清楚问题所在——侵权、恶意代码、与描述不符。空泛的「有问题」帮不上忙。
+            </p>
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="例如：这个包里的 units 覆盖了原版单位，导致联机不同步"
+              autoFocus
+            />
+            <input
+              className="field"
+              style={{ marginTop: 8 }}
+              value={contact}
+              onChange={(event) => setContact(event.target.value)}
+              placeholder="联系方式（可选，方便回访）"
+            />
+            {error && (
+              <div className="notice notice-error" style={{ marginTop: 10 }}>
+                {error}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn" onClick={onClose} disabled={busy}>
+                取消
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => void submit()}
+                disabled={busy || short}
+              >
+                {busy ? "提交中…" : "提交举报"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
