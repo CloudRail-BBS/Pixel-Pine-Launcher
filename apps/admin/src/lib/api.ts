@@ -42,7 +42,21 @@ export interface ReportItem {
 /** 空字符串表示「同源」——后台由服务端自己托管时用它，换域名不用改配置。 */
 export function apiBase(): string {
   const saved = localStorage.getItem(BASE_KEY)?.trim();
-  return saved ? normalizeBase(saved) : "";
+  if (!saved) return "";
+
+  const base = normalizeBase(saved);
+  try {
+    const url = new URL(base);
+    // 只保留 origin：填成 `https://xxx/admin` 时，拼出来的 `/admin/v1/...`
+    // 会被静态站点或网关接走，返回的 404 / HTML 完全不像接口错误，很难查
+    if (url.pathname !== "/" && url.pathname !== "") {
+      console.warn(`[ppl] 服务地址带了路径 ${url.pathname}，已忽略，只使用 ${url.origin}`);
+      return url.origin;
+    }
+    return url.origin;
+  } catch {
+    return base;
+  }
 }
 
 export function setApiBase(value: string): string {
@@ -75,6 +89,19 @@ export function setToken(token: string | null): void {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+/** 把状态码翻成人话。带 5xx/404 的原始状态码，方便直接对上部署问题。 */
+function describeStatus(status: number, contentType: string): string {
+  if (status === 404) return "接口不存在（404）：服务端可能还是旧版本，重新部署后再试";
+  if (status === 405) return "请求方法不被接受（405）：前后端版本对不上";
+  if (status === 502 || status === 503 || status === 504) {
+    return `网关连不上服务端（${status}）：反向代理或容器可能没起来`;
+  }
+  if (contentType.includes("html")) {
+    return `请求被静态页面接走了（${status}）：路径或服务地址不对`;
+  }
+  return `请求失败（${status}）`;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -89,9 +116,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers.set("authorization", `Bearer ${token}`);
 
+  // 同源时用 origin 拼绝对地址：相对路径在 `/admin/` 这类子路径页面下会解析错位
+  const endpoint = apiBase() ? `${apiBase()}${path}` : new URL(path, window.location.origin).toString();
+
   let response: Response;
   try {
-    response = await fetch(`${apiBase()}${path}`, { ...init, headers });
+    response = await fetch(endpoint, { ...init, headers });
   } catch {
     throw new ApiError(0, "连不上服务端，检查网络或服务地址");
   }
@@ -101,9 +131,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(401, "登录已过期，请重新登录");
   }
 
+  const contentType = response.headers.get("content-type") ?? "";
   const text = await response.text();
   let body: unknown = null;
-  if (text) {
+  if (text && contentType.includes("json")) {
     try {
       body = JSON.parse(text);
     } catch {
@@ -115,8 +146,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const message =
       body && typeof body === "object" && "error" in body
         ? String((body as { error: unknown }).error)
-        : `请求失败（${response.status}）`;
+        : describeStatus(response.status, contentType);
     throw new ApiError(response.status, message);
+  }
+
+  // 2xx 却不是 JSON：几乎都是路径被静态站点接管了（返回了 index.html）
+  if (text && !contentType.includes("json")) {
+    throw new ApiError(
+      response.status,
+      `服务端返回的是 ${contentType || "非 JSON"}，不是接口数据——检查服务地址是否指到了后台页面本身`,
+    );
   }
 
   return body as T;
