@@ -51,14 +51,15 @@ export interface GeetestResult {
   gen_time: string;
 }
 
+/** 空字符串表示「同源」——后台由服务端自己托管时用它，换域名不用改配置。 */
 export function apiBase(): string {
   const saved = localStorage.getItem(BASE_KEY)?.trim();
-  return normalizeBase(saved || OFFICIAL_BASE);
+  return saved ? normalizeBase(saved) : "";
 }
 
 export function setApiBase(value: string): string {
-  const next = normalizeBase(value);
-  if (next === OFFICIAL_BASE) localStorage.removeItem(BASE_KEY);
+  const next = value.trim() ? normalizeBase(value) : "";
+  if (!next) localStorage.removeItem(BASE_KEY);
   else localStorage.setItem(BASE_KEY, next);
   return next;
 }
@@ -66,7 +67,7 @@ export function setApiBase(value: string): string {
 /** 线上强制 HTTPS，公网地址填 http 直接升级；本地/内网保留 http。 */
 function normalizeBase(input: string): string {
   let value = input.trim().replace(/\/+$/, "");
-  if (!value) return OFFICIAL_BASE;
+  if (!value) return "";
   if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
 
   const isLocal =

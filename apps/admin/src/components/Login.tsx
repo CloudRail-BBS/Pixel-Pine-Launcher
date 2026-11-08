@@ -200,13 +200,13 @@ export function Login({ onDone }: LoginProps) {
         </div>
 
         <div className="login-hint">
-          服务地址：{api.apiBase()}
+          服务地址：{api.apiBase() || "同源（当前站点）"}
           <br />
           <button
             type="button"
             style={{ color: "var(--accent)", fontSize: 12, padding: 0 }}
             onClick={() => {
-              const next = window.prompt("服务地址（例如 https://ziyuan.pixelpine.org）", api.apiBase());
+              const next = window.prompt("服务地址（留空表示同源；也可填 https://ziyuan.pixelpine.org）", api.apiBase());
               if (next) {
                 api.setApiBase(next);
                 window.location.reload();

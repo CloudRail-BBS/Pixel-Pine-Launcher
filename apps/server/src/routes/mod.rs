@@ -13,7 +13,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 use crate::config::Config;
@@ -29,6 +29,16 @@ const BODY_LIMIT: usize = 210 * 1024 * 1024;
 
 pub fn router(state: AppState) -> Router {
     let files = ServeDir::new(state.config.storage_dir.clone());
+
+    // 审核后台和 API 同一个进程：省一个容器，也省掉跨域配置。
+    // 前端用的是 history 路由，找不到的路径要回落到 index.html，
+    // 否则刷新 /admin/queue 会 404。
+    let admin_root = state.config.admin_dir.clone();
+    // 用 fallback 而不是 not_found_service：后者的实现会把状态码强制改成 404，
+    // 结果「页面能显示但返回 404」，浏览器渲染没问题，代理和监控会以为挂了。
+    let admin = ServeDir::new(&admin_root)
+        .append_index_html_on_directories(true)
+        .fallback(ServeFile::new(admin_root.join("index.html")));
 
     Router::new()
         // 进程活着就算健康；数据库状态单独由 /readyz 表达
@@ -69,8 +79,19 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/launcher/latest.json", get(dist::launcher_latest))
         // 资源包下载。走静态目录，将来换对象存储时只改这里
         .nest_service("/files", files)
+        // 审核后台。构建产物放在 PPL_ADMIN_DIR，没放就是 404（不影响 API）
+        .route("/admin", get(admin_redirect))
+        .nest_service("/admin/", admin)
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(state)
+}
+
+/// `/admin` → `/admin/`。
+///
+/// 少了尾斜杠的话，ServeDir 拿到的相对路径是空的，直接 404；
+/// 用户从地址栏手敲域名时最容易踩这个。
+async fn admin_redirect() -> axum::response::Redirect {
+    axum::response::Redirect::permanent("/admin/")
 }

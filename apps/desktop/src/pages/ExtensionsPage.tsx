@@ -5,70 +5,88 @@ import { PuzzleIcon, RefreshIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
 import {
   importExtension,
+  importRwml,
+  pickJar,
   pickPackage,
+  readFormat,
   removeExtension,
+  removeRwml,
+  saveFormat,
   scanExtensions,
+  scanRwml,
   setExtensionEnabled,
+  setRwmlEnabled,
+  type ExtensionFormat,
 } from "../lib/extensions";
-import type { ExtensionsView, PplExtension } from "../lib/types";
-
-/**
- * 运行时是否已接入。
- *
- * 现在只有「静态部分」：识别、安装、启停、依赖与顺序。
- * 真正把扩展注入游戏进程的 JVM agent 还没做，所以这里必须如实告诉用户
- * 「扩展装上了但还不会生效」——否则他会以为是扩展本身坏了。
- */
-const RUNTIME_READY = false;
-
-interface ExtensionsPageProps {
-  /** 游戏目录；没有实例时整页退化成引导 */
-  root: string | null;
-  notify: (message: string) => void;
-}
+import type { ExtensionsView, PplExtension, RwmlExtension, RwmlView } from "../lib/types";
 
 /**
  * 扩展页。
  *
- * 这里管理的是 **PPL 自己的扩展格式**（`.pplx` + `ppl-extension.json`），
- * 和社区加载器的 `extensions/` 井水不犯河水——两者的包格式不同，
- * 混在一个目录里只会互相干扰。
+ * 两种格式并存，用户自己选，**默认是 PPL 自有的一套**：
+ *
+ * - `ppl`：`<游戏>/ppl/extensions`，`.pplx` + `ppl-extension.json`
+ * - `rwml`：`<游戏>/extensions`，`.jar` + `META-INF/extension.properties`（兼容层）
+ *
+ * 两套目录互不重叠，所以可以同时存在，不会互相覆盖。
  */
-export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
-  const [view, setView] = useState<ExtensionsView | null>(null);
+export function ExtensionsPage({
+  root,
+  notify,
+}: {
+  root: string | null;
+  notify: (message: string) => void;
+}) {
+  const [format, setFormat] = useState<ExtensionFormat>(() => readFormat());
+  const [ppl, setPpl] = useState<ExtensionsView | null>(null);
+  const [rwml, setRwml] = useState<RwmlView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [removeTarget, setRemoveTarget] = useState<PplExtension | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<PplExtension | RwmlExtension | null>(null);
 
   const load = useCallback(async () => {
     if (!root) {
-      setView(null);
+      setPpl(null);
+      setRwml(null);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      setView(await scanExtensions(root));
+      if (format === "ppl") setPpl(await scanExtensions(root));
+      else setRwml(await scanRwml(root));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setLoading(false);
     }
-  }, [root]);
+  }, [root, format]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  function switchFormat(next: ExtensionFormat) {
+    setFormat(next);
+    saveFormat(next);
+  }
+
   async function importFromDialog() {
     if (!root) return;
-    const picked = await pickPackage();
-    if (!picked) return;
     setBusy("import");
     try {
-      const imported = await importExtension(root, picked);
-      notify(`已导入《${imported.descriptor.name}》`);
+      if (format === "ppl") {
+        const picked = await pickPackage();
+        if (!picked) return;
+        const imported = await importExtension(root, picked);
+        notify(`已导入《${imported.descriptor.name}》`);
+      } else {
+        const picked = await pickJar();
+        if (!picked) return;
+        const imported = await importRwml(root, picked);
+        notify(`已导入《${imported.name}》`);
+      }
       await load();
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : String(cause));
@@ -77,11 +95,12 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
     }
   }
 
-  async function toggle(item: PplExtension) {
+  async function toggle(item: PplExtension | RwmlExtension) {
     if (!root) return;
     setBusy(item.file);
     try {
-      await setExtensionEnabled(root, item.file, !item.enabled);
+      if (format === "ppl") await setExtensionEnabled(root, item.file, !item.enabled);
+      else await setRwmlEnabled(root, item.file, !item.enabled);
       await load();
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : String(cause));
@@ -90,13 +109,14 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
     }
   }
 
-  async function drop(item: PplExtension) {
+  async function drop(item: PplExtension | RwmlExtension) {
     if (!root) return;
     setBusy(item.file);
     try {
-      await removeExtension(root, item.file);
+      if (format === "ppl") await removeExtension(root, item.file);
+      else await removeRwml(root, item.file);
       setRemoveTarget(null);
-      notify(`已删除《${item.descriptor.name}》`);
+      notify(`已删除《${displayName(item)}》`);
       await load();
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : String(cause));
@@ -105,9 +125,10 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
     }
   }
 
-  const extensions = view?.extensions ?? [];
-  const plan = view?.plan;
-  const loadedCount = plan?.order.length ?? 0;
+  const rows: (PplExtension | RwmlExtension)[] =
+    format === "ppl" ? (ppl?.extensions ?? []) : (rwml?.extensions ?? []);
+  const enabledCount = rows.filter((item) => item.enabled).length;
+  const dir = format === "ppl" ? ppl?.dir : rwml?.dir;
 
   return (
     <>
@@ -116,7 +137,7 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
           <h1 className="page-title">扩展</h1>
           <p className="page-desc">
             {root
-              ? `${extensions.length} 个已安装 · 本次会加载 ${loadedCount} 个`
+              ? `${rows.length} 个已安装 · ${enabledCount} 个已启用`
               : "先指定游戏目录，才能管理扩展"}
           </p>
         </div>
@@ -135,6 +156,26 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
         </div>
       </header>
 
+      <div className="tabs ext-mode" role="tablist" aria-label="扩展格式">
+        <button
+          role="tab"
+          aria-selected={format === "ppl"}
+          className={`tab${format === "ppl" ? " active" : ""}`}
+          onClick={() => switchFormat("ppl")}
+        >
+          PPL 格式
+          <span className="tab-hint">推荐</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={format === "rwml"}
+          className={`tab${format === "rwml" ? " active" : ""}`}
+          onClick={() => switchFormat("rwml")}
+        >
+          RWML 兼容
+        </button>
+      </div>
+
       {!root && (
         <div className="gate">
           <div className="gate-icon" aria-hidden="true">
@@ -142,8 +183,7 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
           </div>
           <h2 className="gate-title">还没有游戏目录</h2>
           <p className="gate-desc">
-            扩展要装进游戏目录里的 <code>ppl/extensions</code>，
-            先在「库」页添加游戏目录或下载一份游戏。
+            扩展要装进游戏目录，先在「库」页添加游戏目录或下载一份游戏。
           </p>
         </div>
       )}
@@ -154,22 +194,18 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
         </div>
       )}
 
-      {root && view && (
+      {root && format === "ppl" && ppl && (
         <>
-          {!RUNTIME_READY && (
-            <div className="notice" style={{ marginBottom: 14 }}>
-              扩展的运行时还没接入：这里可以安装、启停和查看加载顺序，
-              但游戏进程暂时不会应用它们。规范与接入计划见 <code>docs/EXTENSIONS.md</code>。
-            </div>
-          )}
-
-          <PlanWarnings view={view} />
-
-          {plan && plan.order.length > 0 && (
+          <div className="notice" style={{ marginBottom: 14 }}>
+            扩展的运行时还没接入：这里可以安装、启停和查看加载顺序，
+            但游戏进程暂时不会应用它们。
+          </div>
+          <PlanWarnings view={ppl} />
+          {ppl.plan.order.length > 0 && (
             <div className="load-order">
               <span className="load-order-label">加载顺序</span>
               <ol className="load-order-list">
-                {plan.order.map((id, index) => (
+                {ppl.plan.order.map((id, index) => (
                   <li key={id} title={id}>
                     <span className="load-order-index">{index + 1}</span>
                     {id}
@@ -178,38 +214,50 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
               </ol>
             </div>
           )}
-
-          {extensions.length === 0 && !loading ? (
-            <div className="empty">
-              <div>还没有安装任何扩展</div>
-              <div style={{ fontSize: 12 }}>
-                扩展包是 <code>.pplx</code>，里面带一份 <code>ppl-extension.json</code>
-              </div>
-            </div>
-          ) : (
-            <div className="ext-list">
-              {extensions.map((item) => (
-                <ExtensionRow
-                  key={item.file}
-                  item={item}
-                  busy={busy === item.file}
-                  onToggle={() => void toggle(item)}
-                  onRemove={() => setRemoveTarget(item)}
-                />
-              ))}
-            </div>
-          )}
-
-          <p className="ext-foot">
-            扩展目录：<code>{view.dir}</code>
-            {!view.dirExists && "（首次导入时自动创建）"}
-          </p>
         </>
+      )}
+
+      {root && format === "rwml" && rwml && <RwmlNotice view={rwml} />}
+
+      {root &&
+        (rows.length === 0 && !loading ? (
+          <div className="empty">
+            <div>还没有安装任何扩展</div>
+            <div style={{ fontSize: 12 }}>
+              {format === "ppl" ? (
+                <>
+                  PPL 扩展是 <code>.pplx</code>，里面带一份 <code>ppl-extension.json</code>
+                </>
+              ) : (
+                <>
+                  RWML 扩展是 <code>.jar</code>，里面带 <code>META-INF/extension.properties</code>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="ext-list">
+            {rows.map((item) => (
+              <ExtensionRow
+                key={item.file}
+                item={item}
+                busy={busy === item.file}
+                onToggle={() => void toggle(item)}
+                onRemove={() => setRemoveTarget(item)}
+              />
+            ))}
+          </div>
+        ))}
+
+      {dir && (
+        <p className="ext-foot">
+          扩展目录：<code>{dir}</code>
+        </p>
       )}
 
       <Modal
         open={removeTarget !== null}
-        title={`删除《${removeTarget?.descriptor.name ?? ""}》`}
+        title={`删除《${removeTarget ? displayName(removeTarget) : ""}》`}
         description="只删除扩展包本身，不会动它可能在游戏目录里留下的数据。"
         onClose={() => setRemoveTarget(null)}
         dismissable={busy === null}
@@ -229,14 +277,54 @@ export function ExtensionsPage({ root, notify }: ExtensionsPageProps) {
         }
       >
         <p className="modal-desc" style={{ margin: 0 }}>
-          删掉之后要重新导入才能再用。如果只是想暂时关掉，用左边的开关更合适。
+          删掉之后要重新导入才能再用。如果只是想暂时关掉，用右边的开关更合适。
         </p>
       </Modal>
     </>
   );
 }
 
-/** 缺失依赖、成环、API 不兼容——三者都会让扩展静默失效，必须显式说出来。 */
+function displayName(item: PplExtension | RwmlExtension): string {
+  return "descriptor" in item ? item.descriptor.name : item.name;
+}
+
+function itemId(item: PplExtension | RwmlExtension): string {
+  return "descriptor" in item ? item.descriptor.id : item.id;
+}
+
+function itemDeps(item: PplExtension | RwmlExtension): string[] {
+  return "descriptor" in item ? item.descriptor.dependsOn : item.dependsOn;
+}
+
+function itemVersion(item: PplExtension | RwmlExtension): string {
+  return "descriptor" in item ? item.descriptor.version : "";
+}
+
+/** RWML 模式的提示：装没装加载器、停用方式未验证。 */
+function RwmlNotice({ view }: { view: RwmlView }) {
+  return (
+    <div className="ext-warnings">
+      {!view.loader.installed && (
+        <div className="notice">
+          没检测到 RWML 加载器（<code>game-lib.jar.original</code> 或 <code>rwml-runtime</code>）。
+          这里可以先把扩展放进目录，但需要你自行安装加载器后才会生效——启动器不会去改写游戏文件。
+        </div>
+      )}
+      {view.loader.installed && !view.loader.runtime && (
+        <div className="notice">
+          加载器已安装，但没看到 <code>rwml-runtime</code>；首次启动可能需要联网下载运行时。
+        </div>
+      )}
+      <div className="notice">
+        兼容模式只做文件管理：读取对方描述符展示，开关是移动文件。
+        「停用」把 jar 移进 <code>extensions/.disabled/</code>，这一点尚未实测，
+        若发现停用不生效请告诉我。
+      </div>
+    </div>
+  );
+}
+
+/** PPL 模式的问题提示：缺依赖、成环、API 不兼容。 */
 function PlanWarnings({ view }: { view: ExtensionsView }) {
   const { plan } = view;
   const hasIssue =
@@ -276,30 +364,30 @@ function ExtensionRow({
   onToggle,
   onRemove,
 }: {
-  item: PplExtension;
+  item: PplExtension | RwmlExtension;
   busy: boolean;
   onToggle: () => void;
   onRemove: () => void;
 }) {
-  const { descriptor } = item;
+  const version = itemVersion(item);
+  const deps = itemDeps(item);
+  const description = "descriptor" in item ? item.descriptor.description : "";
 
   return (
     <div className={`ext-row${item.enabled ? "" : " off"}${item.valid ? "" : " broken"}`}>
       <div className="ext-main">
         <div className="ext-title">
-          <span>{descriptor.name}</span>
-          {descriptor.version && <span className="badge">{descriptor.version}</span>}
+          <span>{displayName(item)}</span>
+          {version && <span className="badge">{version}</span>}
           {!item.valid && <span className="badge badge-danger">包已损坏</span>}
           {item.enabled ? null : <span className="badge badge-muted">已停用</span>}
         </div>
         <div className="ext-meta">
-          <code>{descriptor.id}</code>
+          <code>{itemId(item)}</code>
           <span>{formatBytes(item.size)}</span>
-          {descriptor.dependsOn.length > 0 && (
-            <span>依赖 {descriptor.dependsOn.join("、")}</span>
-          )}
+          {deps.length > 0 && <span>依赖 {deps.join("、")}</span>}
         </div>
-        {descriptor.description && <p className="ext-desc">{descriptor.description}</p>}
+        {description && <p className="ext-desc">{description}</p>}
         {item.problem && <p className="ext-problem">{item.problem}</p>}
       </div>
 
@@ -308,7 +396,7 @@ function ExtensionRow({
           className={`switch${item.enabled ? " on" : ""}`}
           role="switch"
           aria-checked={item.enabled}
-          aria-label={`${item.enabled ? "停用" : "启用"} ${descriptor.name}`}
+          aria-label={`${item.enabled ? "停用" : "启用"} ${displayName(item)}`}
           disabled={busy || !item.valid}
           onClick={onToggle}
         />

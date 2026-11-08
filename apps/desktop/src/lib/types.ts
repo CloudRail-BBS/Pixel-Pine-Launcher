@@ -169,3 +169,32 @@ export interface ExtensionsView {
   extensions: PplExtension[];
   plan: LoadPlan;
 }
+
+/* ---------- RWML 兼容层 ---------- */
+
+export interface RwmlLoader {
+  installed: boolean;
+  originalBackup: boolean;
+  runtime: boolean;
+  dir: string;
+  dirExists: boolean;
+}
+
+export interface RwmlExtension {
+  id: string;
+  name: string;
+  file: string;
+  mainClass: string | null;
+  uiFramework: string | null;
+  dependsOn: string[];
+  size: number;
+  enabled: boolean;
+  valid: boolean;
+  problem: string | null;
+}
+
+export interface RwmlView {
+  loader: RwmlLoader;
+  dir: string;
+  extensions: RwmlExtension[];
+}

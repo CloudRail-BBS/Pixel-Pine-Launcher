@@ -41,6 +41,16 @@ COPY apps/server/migrations apps/server/migrations
 RUN touch crates/ppl-package/src/lib.rs apps/server/src/main.rs \
     && cd apps/server && cargo build --release
 
+# ---------- 审核后台 ----------
+# 后台和 API 合并成一个镜像：一个容器、一个端口，不用再配跨域。
+FROM node:24-slim AS admin
+
+WORKDIR /build/apps/admin
+COPY apps/admin/package.json apps/admin/package-lock.json ./
+RUN npm ci
+COPY apps/admin/ ./
+RUN npm run build
+
 # ---------- 运行 ----------
 FROM debian:bookworm-slim
 
@@ -51,6 +61,9 @@ RUN apt-get update \
 
 # apps/server 是独立 workspace，target 在它自己下面
 COPY --from=builder /build/apps/server/target/release/ppl-server /usr/local/bin/ppl-server
+
+# 后台产物落在 PPL_ADMIN_DIR（默认 ./admin，工作目录 /app）
+COPY --chown=ppl:ppl --from=admin /build/apps/admin/dist /app/admin
 
 USER ppl
 WORKDIR /app

@@ -7,9 +7,10 @@
 **/dist
 **/.vite
 
-# 与镜像无关的应用
+# 与镜像无关的应用（后台要打进镜像，只排除它的产物和依赖）
 apps/desktop
-apps/admin
+apps/admin/dist
+apps/admin/node_modules
 
 # 版本控制与 CI
 .git

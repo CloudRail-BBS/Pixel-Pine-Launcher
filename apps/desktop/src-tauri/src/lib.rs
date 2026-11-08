@@ -666,6 +666,46 @@ fn remove_extension(root: String, file: String) -> Result<(), String> {
     ppl_core::remove_extension(Path::new(&root), &file).map_err(fail)
 }
 
+/// RWML 兼容模式的扫描结果。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RwmlView {
+    loader: ppl_core::rwml::LoaderStatus,
+    dir: String,
+    extensions: Vec<ppl_core::rwml::RwmlExtension>,
+}
+
+/// 扫描 RWML 扩展。
+///
+/// 这是**兼容层**：只读对方的描述符做展示与开关，不加载、不注入。
+/// 默认格式仍是 PPL 自有的一套。
+#[tauri::command]
+fn scan_rwml(root: String) -> Result<RwmlView, String> {
+    let path = Path::new(&root);
+    let extensions = ppl_core::rwml::scan(path).map_err(fail)?;
+    let loader = ppl_core::rwml::loader_status(path);
+    Ok(RwmlView {
+        dir: loader.dir.clone(),
+        loader,
+        extensions,
+    })
+}
+
+#[tauri::command]
+fn import_rwml(root: String, path: String) -> Result<ppl_core::rwml::RwmlExtension, String> {
+    ppl_core::rwml::import(Path::new(&root), Path::new(&path)).map_err(fail)
+}
+
+#[tauri::command]
+fn set_rwml_enabled(root: String, file: String, enabled: bool) -> Result<(), String> {
+    ppl_core::rwml::set_enabled(Path::new(&root), &file, enabled).map_err(fail)
+}
+
+#[tauri::command]
+fn remove_rwml(root: String, file: String) -> Result<(), String> {
+    ppl_core::rwml::remove(Path::new(&root), &file).map_err(fail)
+}
+
 /// 从本地压缩包安装游戏本体。
 ///
 /// 走的是和在线下载同一条落盘路径，只是跳过了下载与哈希校验——
@@ -759,6 +799,10 @@ pub fn run() {
             import_extension,
             set_extension_enabled,
             remove_extension,
+            scan_rwml,
+            import_rwml,
+            set_rwml_enabled,
+            remove_rwml,
             install_game_from_archive
         ])
         .run(tauri::generate_context!())

@@ -674,3 +674,50 @@ textarea {
   height: 15px;
   accent-color: var(--accent);
 }
+
+/* ---------- 顶部读数卡（兼作视图切换） ---------- */
+
+.stat-strip {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 12px;
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  min-width: 116px;
+  padding: 9px 14px;
+  text-align: left;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  transition:
+    background 160ms var(--ease-out),
+    border-color 160ms linear;
+}
+
+.stat:hover {
+  background: var(--bg-elev-3);
+}
+
+.stat.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.stat-value {
+  font-size: 19px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.stat.active .stat-label {
+  color: var(--text-2);
+}

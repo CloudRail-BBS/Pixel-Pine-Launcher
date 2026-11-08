@@ -1,7 +1,7 @@
 {
   "name": "@ppl/admin",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Pixel-Pine-Launcher 市场审核后台",
   "engines": {

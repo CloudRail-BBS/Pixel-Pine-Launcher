@@ -221,34 +221,6 @@ export default function App() {
           <img src="/logo.png" alt="" />
           PPL 审核后台
         </div>
-        <div className="tabs" role="tablist" aria-label="视图">
-          <button
-            role="tab"
-            aria-selected={tab === "queue"}
-            className={`tab${tab === "queue" ? " active" : ""}`}
-            onClick={() => setTab("queue")}
-          >
-            待审队列
-            {items.length > 0 && <span className="tab-count">{items.length}</span>}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === "reports"}
-            className={`tab${tab === "reports" ? " active" : ""}`}
-            onClick={() => setTab("reports")}
-          >
-            举报
-            {reports.length > 0 && <span className="tab-count">{reports.length}</span>}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === "announce"}
-            className={`tab${tab === "announce" ? " active" : ""}`}
-            onClick={() => setTab("announce")}
-          >
-            公告
-          </button>
-        </div>
         <div className="topbar-spacer" />
         <div className="user-chip">
           <span>{user.email}</span>
@@ -267,6 +239,34 @@ export default function App() {
           退出
         </button>
       </header>
+
+      {/* 用三张卡代替页签：既是切换入口，也是「现在有多少活」的读数 */}
+      <nav className="stat-strip" aria-label="视图">
+        <button
+          className={`stat${tab === "queue" ? " active" : ""}`}
+          aria-current={tab === "queue" ? "page" : undefined}
+          onClick={() => setTab("queue")}
+        >
+          <span className="stat-value">{items.length}</span>
+          <span className="stat-label">待审资源</span>
+        </button>
+        <button
+          className={`stat${tab === "reports" ? " active" : ""}`}
+          aria-current={tab === "reports" ? "page" : undefined}
+          onClick={() => setTab("reports")}
+        >
+          <span className="stat-value">{reports.length}</span>
+          <span className="stat-label">待处理举报</span>
+        </button>
+        <button
+          className={`stat${tab === "announce" ? " active" : ""}`}
+          aria-current={tab === "announce" ? "page" : undefined}
+          onClick={() => setTab("announce")}
+        >
+          <span className="stat-value">{announcements.length}</span>
+          <span className="stat-label">已发布公告</span>
+        </button>
+      </nav>
 
       <div className="body">
         <aside className="queue">

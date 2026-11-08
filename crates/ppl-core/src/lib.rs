@@ -32,6 +32,7 @@ pub mod library;
 pub mod loadout;
 pub mod maps;
 pub mod paths;
+pub mod rwml;
 
 pub use paths::games_root;
 

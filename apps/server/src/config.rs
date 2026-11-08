@@ -21,6 +21,9 @@ pub struct Config {
 
     /// 资源包落盘目录。
     pub storage_dir: PathBuf,
+    /// 审核后台的静态产物目录。由同一个服务托管在 `/admin` 下，
+    /// 省掉再起一个前端容器，也不用为它单独配跨域。
+    pub admin_dir: PathBuf,
     /// 对外可访问的根地址，用来拼下载链接。
     pub public_base: String,
 
@@ -99,6 +102,9 @@ impl Config {
             storage_dir: env::var("PPL_STORAGE_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from("./data/packages")),
+            admin_dir: env::var("PPL_ADMIN_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("./admin")),
             public_base: env::var("PPL_PUBLIC_BASE")
                 .unwrap_or_else(|_| "http://localhost:8080".to_string())
                 .trim_end_matches('/')

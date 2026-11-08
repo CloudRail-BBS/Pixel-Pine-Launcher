@@ -65,7 +65,20 @@ docker compose up -d --build
 首次构建会拉 `rust:1-slim-bookworm` 并编译依赖，**通常 5–15 分钟**（取决于机器和网络）。
 之后的构建会命中依赖缓存，通常 1–2 分钟。
 
-### 1.4 验证
+### 1.4 审核后台
+
+后台已经打进同一个镜像，**不需要单独部署**：
+
+```
+https://你的域名/admin/
+```
+
+- 由服务端在 `/admin` 下托管，前端资源前缀已固定为 `/admin/`
+- 找不到的路径会回落到 `index.html`，刷新子路由不会 404
+- 静态目录由 `PPL_ADMIN_DIR` 指定，镜像内默认 `/app/admin`
+- 后台默认同源访问 API，换域名不用改配置；要连别的实例再手动填地址
+
+### 1.5 验证
 
 ```bash
 # 进程活着
@@ -78,6 +91,7 @@ curl http://localhost:8080/readyz
 
 # 业务接口（迁移脚本里有 3 条演示数据）
 curl "http://localhost:8080/v1/packages?size=3"
+curl -I http://localhost:8080/admin/          # 200，返回后台首页
 ```
 
 如果 `/healthz` 是 200 而 `/readyz` 是 503，说明服务起来了但数据库没连上，看第 6 节排障。
