@@ -8,9 +8,10 @@ import {
   PuzzleIcon,
   SettingsIcon,
   StoreIcon,
+  UploadIcon,
 } from "./Icons";
 
-export type PageId = "library" | "market" | "mods" | "maps" | "net" | "settings";
+export type PageId = "library" | "market" | "mods" | "maps" | "net" | "publish" | "settings";
 
 interface NavItem {
   id: PageId;
@@ -27,6 +28,7 @@ const SECONDARY_NAV: NavItem[] = [
   { id: "mods", label: "Mod", icon: PuzzleIcon },
   { id: "maps", label: "地图", icon: MapIcon },
   { id: "net", label: "联机", icon: GlobeIcon },
+  { id: "publish", label: "发布", icon: UploadIcon },
 ];
 
 interface SidebarProps {

@@ -17,6 +17,7 @@ import {
 import { LibraryPage } from "./pages/LibraryPage";
 import { MapsPage } from "./pages/MapsPage";
 import { MarketPage } from "./pages/MarketPage";
+import { PublishPage } from "./pages/PublishPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { GameMap, Instance, Loadout, LocalMod, MarketPackage, RemotePackage } from "./lib/types";
@@ -448,6 +449,7 @@ export default function App() {
               />
             )}
             {page === "net" && <PlaceholderPage title="联机" description="CNKD 房间列表与直连地址簿" />}
+            {page === "publish" && <PublishPage />}
             {page === "settings" && (
               <SettingsPage
                 version={APP_VERSION}

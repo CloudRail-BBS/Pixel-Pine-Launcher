@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { PixelCover } from "../components/PixelCover";
-import { PineMark, PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
+import { PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
 import type { Instance, Loadout, LocalMod } from "../lib/types";
 
@@ -107,7 +107,8 @@ export function LibraryPage({
         <div className="section-title">游戏实例</div>
         <div className="instance-card">
           <div className="instance-icon">
-            <PineMark className="nav-icon" />
+            {/* 用游戏官方图标，玩家一眼能认出这是哪款游戏 */}
+            <img src="/game-rw.png" alt="" width={44} height={44} />
           </div>
           <div className="instance-meta">
             <h3>
