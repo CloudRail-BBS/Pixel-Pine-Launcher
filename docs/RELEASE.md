@@ -48,6 +48,9 @@ publish ── 汇总产物 → 生成 latest.json → 创建 Release（prerelea
   及更老的发行版直接报 `GLIBC_2.39 not found`。
 - **两个 macOS 都在 arm64 机器上跑**：`macos-13` 是最后一批 Intel 镜像，迟早下线，
   交叉编译到 `x86_64-apple-darwin` 更稳。
+- **打包命令包了一层重试**（`scripts/build-bundles.mjs`）：bundle 阶段会现下
+  NSIS / linuxdeploy / AppRun，这些挂在 GitHub release 资源上，2026-11 真的遇到过
+  整段 504，而 tauri 自己不重试。Rust 产物已就绪，重试只是重打包，几十秒。
 
 ### 产物对照
 

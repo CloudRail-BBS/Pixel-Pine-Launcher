@@ -137,7 +137,7 @@ jobs:
         working-directory: apps/desktop
         run: npm ci
 
-      - name: 构建
+      - name: 构建（上游资源抖动时自动重试）
         working-directory: apps/desktop
         env:
           # 自更新签名：少了这个变量，带 createUpdaterArtifacts 的构建会直接失败。
@@ -148,7 +148,9 @@ jobs:
           # 这里必须显式写 "-"（ad-hoc 签名），不能用空串：
           # 空串会被当成「用名为空的身份签名」，codesign 直接报 no identity found 然后整个打包失败。
           APPLE_SIGNING_IDENTITY: "-"
-        run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        # 打包会现下 NSIS / linuxdeploy / AppRun，GitHub 资源偶尔 504 且 tauri 不重试。
+        # 重试只是重新打包（Rust 产物已就绪），几十秒。
+        run: node ../../scripts/build-bundles.mjs --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
       # 只收安装包和签名，不收 `.app` 目录与中间产物——
       # artifact 按体积计费，几百 MB 的目录树没必要传
