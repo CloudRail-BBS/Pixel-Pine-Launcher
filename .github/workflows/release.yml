@@ -234,3 +234,46 @@ jobs:
             --notes-file docs/RELEASE_NOTES.md \
             --prerelease \
             dist/*
+
+      # 把 latest.json 推到服务端：没有这一步，`/v1/launcher/latest.json` 会一直 204，
+      # 客户端把 204 当成「暂无更新」，界面上只显示「已是最新版本」——
+      # 也就是「更新检查不了」最典型的形态。
+      - name: 推送更新清单到服务端
+        env:
+          ADMIN_EMAIL: ${{ secrets.PPL_ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.PPL_ADMIN_PASSWORD }}
+          # 仓库变量里配了就用它，没配就落到官方实例
+          BASE: ${{ vars.PPL_PUBLIC_BASE }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${ADMIN_PASSWORD}" ]; then
+            echo "::notice::没有配置 PPL_ADMIN_PASSWORD，跳过清单推送（客户端会看到 204）"
+            exit 0
+          fi
+
+          base="${BASE:-https://ziyuan.pixelpine.org}"
+          base="${base%/}"
+
+          token=$(curl -sS -X POST "$base/v1/admin/login" \
+            -H 'content-type: application/json' \
+            -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).token||"")}catch{console.log("")}})')
+
+          if [ -z "$token" ]; then
+            echo "::error::后台登录失败，清单没推上去。检查 PPL_ADMIN_EMAIL / PPL_ADMIN_PASSWORD"
+            exit 1
+          fi
+
+          # 不用 `| tee`：管道会把 curl 的退出码吃掉，推失败了这一步还是绿的
+          if ! curl -sS -f -X POST "$base/v1/admin/launcher" \
+            -H "authorization: Bearer $token" \
+            -H 'content-type: application/json' \
+            --data-binary @dist/latest.json \
+            -o /tmp/published.json; then
+            echo "::error::推送清单失败，客户端会继续看到「已是最新版本」"
+            exit 1
+          fi
+
+          cat /tmp/published.json
+

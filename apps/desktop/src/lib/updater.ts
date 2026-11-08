@@ -35,8 +35,10 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       notes: update.body ?? "",
       date: update.date ?? "",
     };
-  } catch {
-    // 端点没配好、断网、签名公钥对不上——都按「没有更新」处理
+  } catch (error) {
+    // 端点没配好、断网、签名公钥对不上——界面上按「没有更新」处理，
+    // 但要留在控制台里：不然「更新检查不了」永远只有一句「已是最新版本」。
+    console.warn("[ppl] 检查更新失败：", error);
     return null;
   }
 }

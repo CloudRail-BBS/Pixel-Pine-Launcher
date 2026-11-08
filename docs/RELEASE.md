@@ -116,20 +116,51 @@ https://ziyuan.pixelpine.org/v1/launcher/latest.json          ← 自建服务�
 https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases/latest/download/latest.json
 ```
 
-第一个地址由服务端提供：把 CI 产出的 `latest.json` 放到服务器上
+第一个地址由服务端提供。**CI 发版后会自己推上去**——发布任务最后一步调用
+`POST /v1/admin/launcher` 把清单写进 `<storage>/launcher/latest.json`。
+
+要让它生效，仓库里配两个 Secret（这是后台管理员账号，CI 用它换 token）：
+
+| Secret / 变量 | 内容 |
+|---|---|
+| `PPL_ADMIN_EMAIL` | 管理员邮箱 |
+| `PPL_ADMIN_PASSWORD` | 管理员密码**明文**（服务端存哈希也行，但 CI 拿去登录的必须是明文） |
+| `PPL_PUBLIC_BASE`（变量，可选） | 服务地址，不配就用 `https://ziyuan.pixelpine.org` |
+
+没配密码时这一步会打一条 notice 然后跳过，不会让发版失败。
+
+### 手动兜底
+
+服务端还没升级到带 `/v1/admin/launcher` 的版本时，可以把文件直接放进去：
 
 ```bash
-mkdir -p /srv/ppl/launcher
-# 从 Release 页面下载 latest.json 后放进去
-cp latest.json /srv/ppl/launcher/latest.json
-```
-
-容器部署时这个目录就是 `PPL_STORAGE_DIR` 下的 `launcher/`：
-
-```bash
+# 容器部署：/data/packages 对应 compose 的 ppl-files 卷
 docker compose exec -T server sh -c 'mkdir -p /data/packages/launcher'
 docker cp latest.json $(docker compose ps -q server):/data/packages/launcher/latest.json
 ```
+
+或者用接口推（需要管理员 token）：
+
+```bash
+TOKEN=$(curl -s -X POST https://ziyuan.pixelpine.org/v1/admin/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"……"}' | jq -r .token)
+
+curl -s -X POST https://ziyuan.pixelpine.org/v1/admin/launcher \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @latest.json
+```
+
+### 怎么确认生效
+
+```bash
+curl -s https://ziyuan.pixelpine.org/v1/launcher/latest.json | head -c 200
+```
+
+- 返回 JSON，里面 `version` 是最新版 → 正常
+- 返回 **204** → 服务器上没有清单，客户端会显示「已是最新版本」并静默跳过。
+  这就是「更新检查不了」最常见的原因，先看这里。
 
 `latest.json` 由 `scripts/make-latest-json.mjs` 从产物文件名 + `.sig` 拼出来，
 不需要手写：

@@ -111,7 +111,8 @@ export function SettingsPage({
           </div>
           <div className="kv">
             <span>内核</span>
-            <span>ppl-core 0.1.0</span>
+            {/* 内核 crate 独立版本号，跟着应用版本走反而会显示成「老版本」 */}
+            <span>ppl-core</span>
           </div>
           <div className="kv">
             <span>数据来源</span>

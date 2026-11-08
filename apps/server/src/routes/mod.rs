@@ -79,6 +79,8 @@ pub fn router(state: AppState) -> Router {
             axum::routing::delete(announcements::delete),
         )
         .route("/v1/admin/reports/{id}/handle", post(admin::handle_report))
+        // 客户端更新清单：CI 发版后直接推上来，省掉人工 cp
+        .route("/v1/admin/launcher", post(dist::publish_launcher))
         // 分发清单：运营方放文件，服务端只读
         .route("/v1/game/index.json", get(dist::game_index))
         .route("/v1/launcher/latest.json", get(dist::launcher_latest))

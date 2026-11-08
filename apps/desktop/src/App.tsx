@@ -25,7 +25,8 @@ import { PublishPage } from "./pages/PublishPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { GameMap, Instance, Loadout, LocalMod, MarketPackage, RemotePackage } from "./lib/types";
 
-const APP_VERSION = "0.1.0";
+// 构建期由 vite 注入（见 vite.config.ts 的 define），别在这里写死
+const APP_VERSION = __APP_VERSION__;
 
 export default function App() {
   const [page, setPage] = useState<PageId>("library");
