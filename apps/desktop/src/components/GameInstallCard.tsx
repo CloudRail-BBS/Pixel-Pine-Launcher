@@ -62,7 +62,10 @@ export function GameInstallCard({ onInstalled, onBrowse }: GameInstallCardProps)
     void load();
   }, [load]);
 
-  const latest: GameVersion | undefined = catalog?.versions[0];
+  // 清单按版本号从新到旧排，但 beta 可能比 stable 更新——
+  // 首屏主推稳定版，beta 留给用户自己选。
+  const latest: GameVersion | undefined =
+    catalog?.versions.find((item) => item.channel === "stable") ?? catalog?.versions[0];
 
   async function start() {
     if (!latest) return;

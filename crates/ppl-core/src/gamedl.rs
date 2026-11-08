@@ -329,22 +329,38 @@ mod tests {
 
     #[test]
     fn picks_newest_of_platform() {
-        let text = r#"{
+        // 平台不能写死：这个测试要在 Windows 和 Linux 的 CI 上都成立，
+        // 否则「挑最新版」的断言实际上只是在挑「哪个平台恰好是 windows」。
+        let me = current_platform();
+        let text = format!(
+            r#"{{
             "schema": 1,
             "versions": [
-                {"version": "1.14", "platform": "windows", "urls": ["a"], "sha256": "x"},
-                {"version": "1.15", "platform": "windows", "urls": ["b"], "sha256": "y"},
-                {"version": "1.16", "platform": "linux", "urls": ["c"], "sha256": "z"},
-                {"version": "9.99", "platform": "windows", "channel": "beta", "urls": ["d"], "sha256": "w"}
+                {{"version": "1.14", "platform": "{me}", "urls": ["a"]}},
+                {{"version": "1.15", "platform": "{me}", "urls": ["b"]}},
+                {{"version": "9.99", "platform": "{me}", "channel": "beta", "urls": ["c"]}},
+                {{"version": "2.0", "platform": "some-other-os", "urls": ["d"]}}
             ]
-        }"#;
+        }}"#
+        );
 
-        let manifest = GameManifest::parse(text).expect("解析");
+        let manifest = GameManifest::parse(&text).expect("解析");
         let latest = manifest.latest("stable").expect("有稳定版");
 
-        // 只在当前平台的 stable 里挑，1.16 是 linux、9.99 是 beta，都不该选中
+        // 只在当前平台的 stable 里挑：9.99 是 beta、2.0 是别的平台，都不该选中
         assert_eq!(latest.version, "1.15");
         assert!(manifest.channels().contains(&"stable".to_string()));
+
+        // 排序走同一套比较：stable 里 1.15 要排在 1.14 前面。
+        // 注意 sorted_for_platform 不按通道筛，beta 的 9.99 排在更前面是对的——
+        // 「选哪个通道」是上层的决定，内核只负责把顺序理对。
+        let sorted = manifest.sorted_for_platform();
+        let stable: Vec<&str> = sorted
+            .iter()
+            .filter(|item| item.channel == "stable")
+            .map(|item| item.version.as_str())
+            .collect();
+        assert_eq!(stable, vec!["1.15", "1.14"]);
     }
 
     #[test]
