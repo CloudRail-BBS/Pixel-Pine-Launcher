@@ -145,8 +145,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # 没有 Apple 开发者证书，只能出未签名包（首次打开需要用户自己绕过 Gatekeeper）。
-          # 显式置空是告诉 tauri「别去钥匙串里找证书」，否则它会尝试自动签名然后失败
-          APPLE_SIGNING_IDENTITY: ""
+          # 这里必须显式写 "-"（ad-hoc 签名），不能用空串：
+          # 空串会被当成「用名为空的身份签名」，codesign 直接报 no identity found 然后整个打包失败。
+          APPLE_SIGNING_IDENTITY: "-"
         run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       # 只收安装包和签名，不收 `.app` 目录与中间产物——
