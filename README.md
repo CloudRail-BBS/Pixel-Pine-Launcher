@@ -45,6 +45,9 @@ PPL 的核心不是「装游戏」，而是**组合管理**——把每一套玩
 
 ## 开发
 
+前端需要 **Node 24+**（仓库带 `.nvmrc`，`nvm use` 会自动切到对应版本）。
+内核需要 Rust 1.88+，桌面壳还需要系统 WebView2。
+
 ```bash
 # 内核
 cargo test --workspace
