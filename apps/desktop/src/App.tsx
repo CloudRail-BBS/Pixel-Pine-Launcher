@@ -151,6 +151,40 @@ export default function App() {
     }
   }, [page, marketLoaded, marketLoading, marketError, loadMarket]);
 
+  const uninstallFromMarket = useCallback(
+    async (item: MarketPackage) => {
+      if (demo) {
+        notify("演示模式：在桌面端才能真的卸载");
+        return;
+      }
+      if (!instance) return;
+
+      setInstallingId(item.id);
+      try {
+        const removed = await api.uninstallPackage(activeLoadout, item.slug);
+        if (!removed) {
+          notify("当前预设里没有这个资源");
+          return;
+        }
+        setMarket((current) =>
+          current.map((row) => (row.id === item.id ? { ...row, state: "available" } : row)),
+        );
+        try {
+          setLoadouts(await api.listLoadouts());
+        } catch {
+          // 读失败不影响卸载结果
+        }
+        await reloadMods(instance).catch(() => undefined);
+        notify(`已卸载《${item.title}》`);
+      } catch (error) {
+        notify(String(error));
+      } finally {
+        setInstallingId(null);
+      }
+    },
+    [demo, instance, activeLoadout, reloadMods, notify],
+  );
+
   const installFromMarket = useCallback(
     async (item: MarketPackage) => {
       if (demo) {
@@ -445,6 +479,7 @@ export default function App() {
                 onRetry={() => void loadMarket()}
                 onInstall={(item) => void installFromMarket(item)}
                 installingId={installingId}
+                onUninstall={(item) => void uninstallFromMarket(item)}
               />
             )}
 

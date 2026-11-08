@@ -23,8 +23,9 @@ interface MarketPageProps {
   error: string | null;
   onRetry: () => void;
   onInstall: (item: MarketPackage) => void;
-  /** 正在安装的资源 id，用来把按钮换成进度态并挡住重复点击 */
+  /** 正在安装/卸载的资源 id，用来把按钮换成进度态并挡住重复点击 */
   installingId: string | null;
+  onUninstall: (item: MarketPackage) => void;
 }
 
 export function MarketPage({
@@ -35,6 +36,7 @@ export function MarketPage({
   onRetry,
   onInstall,
   installingId,
+  onUninstall,
 }: MarketPageProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -68,6 +70,7 @@ export function MarketPage({
         installing={installingId === opened.id}
         onBack={() => setOpenId(null)}
         onInstall={() => onInstall(opened)}
+        onUninstall={() => onUninstall(opened)}
       />
     );
   }
@@ -201,11 +204,13 @@ function DetailView({
   installing,
   onBack,
   onInstall,
+  onUninstall,
 }: {
   item: MarketPackage;
   installing: boolean;
   onBack: () => void;
   onInstall: () => void;
+  onUninstall: () => void;
 }) {
   const [versions, setVersions] = useState<
     { version: string; size: number; changelog: string }[]
@@ -213,6 +218,7 @@ function DetailView({
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
 
   const load = useCallback(async () => {
     if (activeSource().format !== "ppl") {
@@ -252,7 +258,17 @@ function DetailView({
           </div>
         </div>
         <div className="head-actions">
-          <ActionButton state={item.state} installing={installing} onClick={onInstall} />
+          {item.state === "installed" ? (
+            <button
+              className="btn btn-sm btn-danger"
+              disabled={installing}
+              onClick={() => setConfirmUninstall(true)}
+            >
+              {installing ? "处理中…" : "卸载"}
+            </button>
+          ) : (
+            <ActionButton state={item.state} installing={installing} onClick={onInstall} />
+          )}
         </div>
       </header>
 
@@ -304,6 +320,32 @@ function DetailView({
           举报这个资源
         </button>
       </div>
+
+      {confirmUninstall && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <h2 className="modal-title">卸载《{item.title}》</h2>
+            <p className="modal-desc">
+              会从当前预设里删除这个资源包。游戏目录里的内容随之消失，
+              其他预设里的同名资源不受影响。
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setConfirmUninstall(false)}>
+                取消
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => {
+                  setConfirmUninstall(false);
+                  onUninstall();
+                }}
+              >
+                确认卸载
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reporting && (
         <ReportDialog

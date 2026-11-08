@@ -386,6 +386,14 @@ async fn fetch_relay_rooms(url: String) -> Result<serde_json::Value, String> {
         .map_err(|error| format!("解析房间数据失败：{error}"))
 }
 
+/// 从预设卸载资源：删文件 + 改清单。
+/// 命令名带 market 前缀，避免和内核同名函数混淆。
+#[tauri::command]
+fn uninstall_market_package(loadout_id: String, package_id: String) -> Result<bool, String> {
+    let store = LoadoutStore::default_store();
+    ppl_core::uninstall_package(&store, &loadout_id, &package_id).map_err(fail)
+}
+
 #[tauri::command]
 fn set_mod_enabled(root: String, name: String, enabled: bool) -> Result<(), String> {
     ppl_core::set_mod_enabled(&units_dir(&root), &name, enabled).map_err(fail)
@@ -429,6 +437,7 @@ pub fn run() {
             import_package,
             install_from_url,
             fetch_relay_rooms,
+            uninstall_market_package,
             set_mod_enabled,
             attach_loadout,
             link_status,

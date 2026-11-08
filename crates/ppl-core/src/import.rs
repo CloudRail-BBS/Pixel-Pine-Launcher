@@ -102,6 +102,18 @@ fn import_inner(
     std::fs::copy(source, &dest)?;
 
     let mut loadout = store.load(loadout_id)?;
+
+    // 升级会写新文件名，旧版本的包得一并删掉：
+    // 清单里只保留一条，但磁盘上会一直留着上一个版本，越升越多。
+    if let Some(previous) = loadout.packages.iter().find(|item| item.id == id)
+        && previous.dir != file_name
+    {
+        let stale = dir.join(&previous.dir);
+        if stale.is_file() {
+            let _ = std::fs::remove_file(stale);
+        }
+    }
+
     loadout.upsert_package(LoadoutPackage {
         id: id.to_string(),
         version: version.to_string(),
@@ -124,6 +136,38 @@ fn import_inner(
         size: meta.package_size,
         unit_count: meta.unit_count,
     })
+}
+
+/// 从预设里卸载一个资源：删文件 + 从清单移除。
+///
+/// 返回 `false` 表示这个预设里本来就没有它。
+/// 只删预设存储区里的那份，不碰 `mods/units`——那里是链接指向的同一份内容。
+pub fn uninstall_package(store: &LoadoutStore, loadout_id: &str, package_id: &str) -> Result<bool> {
+    let dir = store.dir(loadout_id);
+    if !dir.is_dir() {
+        return Err(Error::LoadoutNotFound(loadout_id.to_string()));
+    }
+
+    let mut loadout = store.load(loadout_id)?;
+    let Some(target) = loadout
+        .packages
+        .iter()
+        .find(|item| item.id == package_id)
+        .cloned()
+    else {
+        return Ok(false);
+    };
+
+    loadout.remove_package(package_id);
+    store.save(&loadout)?;
+
+    // 先改清单再删文件：反过来的话，删到一半失败会留下一条指向空文件的记录
+    let file = dir.join(&target.dir);
+    if file.is_file() {
+        std::fs::remove_file(&file)?;
+    }
+
+    Ok(true)
 }
 
 /// 把文件名清洗成安全的目录/文件片段。
@@ -238,5 +282,48 @@ mod tests {
         assert_eq!(sanitize("a/b:c*d"), "a_b_c_d");
         assert_eq!(sanitize("  "), "imported");
         assert_eq!(sanitize("现代 战争"), "现代_战争");
+    }
+
+    #[test]
+    fn upgrade_removes_previous_file() {
+        let base = temp_dir("upgrade");
+        let store = LoadoutStore::new(base.join("loadouts"));
+        store.create("mw", "MW").expect("建预设");
+
+        let source = base.join("mod.rwmod");
+        write_rwmod(&source);
+
+        let first = install_from_path(&store, "mw", &source, "modern-war", "1.0").expect("装 1.0");
+        assert!(store.dir("mw").join(&first.file).is_file());
+
+        let second = install_from_path(&store, "mw", &source, "modern-war", "2.0").expect("装 2.0");
+
+        // 旧版本文件必须消失：否则每升一次就多留一个包
+        assert!(!store.dir("mw").join(&first.file).is_file());
+        assert!(store.dir("mw").join(&second.file).is_file());
+
+        let loadout = store.load("mw").expect("读预设");
+        assert_eq!(loadout.packages.len(), 1);
+        assert_eq!(loadout.packages[0].version, "2.0");
+    }
+
+    #[test]
+    fn uninstall_removes_file_and_entry() {
+        let base = temp_dir("uninstall");
+        let store = LoadoutStore::new(base.join("loadouts"));
+        store.create("mw", "MW").expect("建预设");
+
+        let source = base.join("mod.rwmod");
+        write_rwmod(&source);
+
+        let imported = install_from_path(&store, "mw", &source, "modern-war", "1.0").expect("装");
+        assert!(uninstall_package(&store, "mw", "modern-war").expect("卸"));
+        assert!(!store.dir("mw").join(&imported.file).is_file());
+
+        let loadout = store.load("mw").expect("读预设");
+        assert!(loadout.packages.is_empty());
+
+        // 再卸一次是 false，不该报错
+        assert!(!uninstall_package(&store, "mw", "modern-war").expect("再卸"));
     }
 }

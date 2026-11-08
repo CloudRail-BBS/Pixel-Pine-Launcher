@@ -119,6 +119,17 @@ export async function installFromUrl(
   return invoke<ImportedPackage>("install_from_url", { root, loadoutId, url, slug, version });
 }
 
+/** 从预设卸载资源。返回 false 表示这个预设里本来就没有它。 */
+export async function uninstallPackage(
+  loadoutId: string,
+  packageId: string,
+): Promise<boolean> {
+  if (!isTauri()) {
+    throw new Error("浏览器预览里不能卸载资源，请在桌面端操作");
+  }
+  return invoke<boolean>("uninstall_market_package", { loadoutId, packageId });
+}
+
 export async function listLoadouts(): Promise<Loadout[]> {
   return invoke<Loadout[]>("list_loadouts");
 }
