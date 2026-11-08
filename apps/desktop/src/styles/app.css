@@ -16,34 +16,18 @@
 }
 
 /* 环境光：给玻璃材质一点可折射的东西，否则 blur() 看不出效果 */
+/* 环境光：玻璃要透出点东西才有质感，纯色底上的 backdrop-filter 等于没做。
+   三个光斑分别落在左上、右侧中部、右下，侧栏和页头都能压到不同的色。 */
 .ambient {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
-}
-
-.ambient::before,
-.ambient::after {
-  content: "";
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  filter: blur(90px);
-}
-
-.ambient::before {
-  top: -240px;
-  left: -60px;
-  background: var(--ambient-a);
-}
-
-.ambient::after {
-  bottom: -300px;
-  right: -120px;
-  background: var(--ambient-b);
+  background:
+    radial-gradient(52% 44% at 8% -4%, var(--ambient-a), transparent 68%),
+    radial-gradient(42% 38% at 78% 34%, var(--ambient-c), transparent 70%),
+    radial-gradient(56% 48% at 96% 104%, var(--ambient-b), transparent 70%);
 }
 
 /* ---------- 侧边栏 ---------- */
@@ -350,10 +334,13 @@
 }
 
 .card {
-  background: var(--bg-elev);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: 18px;
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px rgb(16 40 80 / 0.04);
 }
 
 .card-row {
@@ -367,7 +354,9 @@
   align-items: center;
   gap: 16px;
   padding: 16px 18px;
-  background: var(--bg-elev);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
 }
@@ -446,10 +435,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--bg-elev);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px rgb(16 40 80 / 0.04);
 }
 
 .mod-row {
@@ -721,10 +713,13 @@
 
 .pkg-card {
   text-align: left;
-  background: var(--bg-elev);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px rgb(16 40 80 / 0.04);
   transition:
     transform 220ms var(--ease-out),
     border-color 220ms linear,
@@ -734,7 +729,7 @@
 .pkg-card:hover {
   transform: translateY(-2px);
   border-color: var(--line-strong);
-  background: var(--bg-elev-2);
+  background: var(--hover-strong);
 }
 
 .pkg-card:active {

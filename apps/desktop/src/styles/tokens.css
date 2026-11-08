@@ -1,57 +1,65 @@
 /* 设计 token —— 单一来源，组件不写死颜色与圆角。
-   深浅两套主题只换变量，不改组件。 */
+   深浅两套主题只换变量，不改组件。
+
+   配色：蓝白。主色取 Apple 系统蓝，浅色是白卡浮在淡蓝画布上，
+   深色是蓝黑而不是中性灰——同一套蓝色在两档里都保持「冷」的调性。 */
 
 :root {
   /* 画布与层级 */
-  --bg: #0e1013;
-  --bg-elev: #16181c;
-  --bg-elev-2: #1d2025;
-  --bg-elev-3: #24282e;
+  --bg: #0a0f1a;
+  --bg-elev: #121a29;
+  --bg-elev-2: #192335;
+  --bg-elev-3: #212e44;
 
   /* 交互覆盖层：hover / 选中 / 按钮底色 */
-  --hover: rgba(255, 255, 255, 0.045);
-  --hover-strong: rgba(255, 255, 255, 0.08);
-  --badge-bg: rgba(255, 255, 255, 0.06);
-  --switch-off: rgba(255, 255, 255, 0.12);
+  --hover: rgba(255, 255, 255, 0.05);
+  --hover-strong: rgba(255, 255, 255, 0.09);
+  --badge-bg: rgba(255, 255, 255, 0.07);
+  --switch-off: rgba(255, 255, 255, 0.14);
   --knob: #ffffff;
 
   /* 描边 */
-  --line: rgba(255, 255, 255, 0.06);
-  --line-strong: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
 
   /* 文本 */
-  --text: #e8eaed;
-  --text-2: #9aa0a6;
-  --text-3: #6b7178;
+  --text: #e9eef7;
+  --text-2: #9aa7bd;
+  --text-3: #6b7891;
 
   /* 语义色 */
-  --accent: #3ddc97;
-  --accent-soft: rgba(61, 220, 151, 0.14);
-  --accent-line: rgba(61, 220, 151, 0.35);
-  --accent-ink: #06231a;
+  --accent: #4c9aff;
+  --accent-soft: rgba(76, 154, 255, 0.16);
+  --accent-line: rgba(76, 154, 255, 0.4);
+  --accent-ink: #04121f;
   --warn: #f2c14e;
   --warn-soft: rgba(242, 193, 78, 0.14);
-  --danger: #e5484d;
-  --danger-soft: rgba(229, 72, 77, 0.14);
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.14);
 
-  /* 材质 */
-  --glass-bg: rgb(22 24 28 / 0.62);
-  --glass-blur: 28px;
+  /* 材质：玻璃要真的能透出后面的内容，所以底色比画布更淡 */
+  --glass-bg: rgb(18 26 41 / 0.55);
+  --glass-blur: 32px;
+  --glass-saturate: 180%;
   /* 玻璃上边缘的一道高光，是材质感的关键；没有它只是「半透明」 */
-  --glass-hi: rgba(255, 255, 255, 0.1);
-  --panel-bg: rgb(22 24 28 / 0.9);
-  --dock-bg: rgb(30 33 38 / 0.92);
-  --toast-bg: rgba(38, 18, 20, 0.94);
-  --toast-text: #ffb8b8;
-  --toast-line: rgba(229, 72, 77, 0.35);
+  --glass-hi: rgba(255, 255, 255, 0.14);
+  --panel-bg: rgb(18 26 41 / 0.82);
+  --dock-bg: rgb(26 36 54 / 0.88);
+  /* 卡片也用一层薄玻璃：透出环境光，但不至于看不清字 */
+  --card-bg: rgb(20 29 46 / 0.66);
+  --card-blur: 18px;
+  --toast-bg: rgba(42, 20, 24, 0.94);
+  --toast-text: #ffc0c0;
+  --toast-line: rgba(255, 107, 107, 0.35);
 
   /* 环境光：给玻璃一点可折射的内容 */
-  --ambient-a: rgba(61, 220, 151, 0.03);
-  --ambient-b: rgba(47, 122, 229, 0.025);
+  --ambient-a: rgba(76, 154, 255, 0.22);
+  --ambient-b: rgba(60, 120, 220, 0.18);
+  --ambient-c: rgba(120, 200, 255, 0.12);
 
   /* 阴影 */
-  --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.32);
-  --shadow-2: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --shadow-1: 0 8px 24px rgba(0, 0, 0, 0.36);
+  --shadow-2: 0 16px 48px rgba(0, 0, 0, 0.5);
 
   /* 圆角 */
   --r-sm: 8px;
@@ -75,49 +83,51 @@
 }
 
 /* 浅色：不是把深色反相，而是重新定一套层级关系。
-   白色卡片浮在浅灰画布上，靠阴影和极淡描边分层，而不是靠深色底。 */
+   白色玻璃卡浮在淡蓝画布上，靠阴影和极淡描边分层，而不是靠深色底。 */
 [data-theme="light"] {
-  --bg: #f2f3f5;
+  --bg: #eef3fb;
   --bg-elev: #ffffff;
-  --bg-elev-2: #fafbfc;
-  --bg-elev-3: #eceef1;
+  --bg-elev-2: #f7faff;
+  --bg-elev-3: #e6edf8;
 
-  --hover: rgba(15, 20, 25, 0.045);
-  --hover-strong: rgba(15, 20, 25, 0.075);
-  --badge-bg: rgba(15, 20, 25, 0.06);
-  --switch-off: rgba(15, 20, 25, 0.16);
+  --hover: rgba(12, 26, 48, 0.045);
+  --hover-strong: rgba(12, 26, 48, 0.075);
+  --badge-bg: rgba(12, 26, 48, 0.06);
+  --switch-off: rgba(12, 26, 48, 0.16);
   --knob: #ffffff;
 
-  --line: rgba(15, 20, 25, 0.08);
-  --line-strong: rgba(15, 20, 25, 0.14);
+  --line: rgba(12, 26, 48, 0.09);
+  --line-strong: rgba(12, 26, 48, 0.16);
 
-  --text: #1a1d21;
-  --text-2: #5b6169;
-  --text-3: #8a9099;
+  --text: #0b1524;
+  --text-2: #4a5a70;
+  --text-3: #7e8ca0;
 
-  /* 浅底上 #3ddc97 对比度不够，换成更深的同色系 */
-  --accent: #0e9f6e;
-  --accent-soft: rgba(14, 159, 110, 0.1);
-  --accent-line: rgba(14, 159, 110, 0.32);
+  /* 浅底上用深一档的蓝，保证对比度 */
+  --accent: #0071e3;
+  --accent-soft: rgba(0, 113, 227, 0.09);
+  --accent-line: rgba(0, 113, 227, 0.28);
   --accent-ink: #ffffff;
   --warn: #a16207;
   --warn-soft: rgba(193, 128, 10, 0.12);
   --danger: #d13438;
   --danger-soft: rgba(209, 52, 56, 0.1);
 
-  --glass-bg: rgb(255 255 255 / 0.72);
-  --glass-hi: rgba(255, 255, 255, 0.9);
-  --panel-bg: rgb(255 255 255 / 0.94);
-  --dock-bg: rgb(255 255 255 / 0.92);
+  --glass-bg: rgb(255 255 255 / 0.55);
+  --glass-hi: rgba(255, 255, 255, 0.95);
+  --panel-bg: rgb(255 255 255 / 0.8);
+  --dock-bg: rgb(255 255 255 / 0.86);
+  --card-bg: rgb(255 255 255 / 0.58);
   --toast-bg: rgba(253, 236, 236, 0.96);
   --toast-text: #9b1c20;
   --toast-line: rgba(209, 52, 56, 0.25);
 
-  --ambient-a: rgba(14, 159, 110, 0.055);
-  --ambient-b: rgba(80, 140, 240, 0.045);
+  --ambient-a: rgba(0, 113, 227, 0.26);
+  --ambient-b: rgba(70, 160, 255, 0.2);
+  --ambient-c: rgba(130, 195, 255, 0.22);
 
-  --shadow-1: 0 6px 18px rgba(15, 20, 25, 0.08);
-  --shadow-2: 0 16px 40px rgba(15, 20, 25, 0.12);
+  --shadow-1: 0 8px 24px rgba(16, 40, 80, 0.1);
+  --shadow-2: 0 16px 40px rgba(16, 40, 80, 0.14);
 
   color-scheme: light;
 }
@@ -131,6 +141,11 @@ body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+html {
+  /* 只给 body 设背景，圆角与滚动缝隙处会露出浏览器默认色 */
+  background: var(--bg);
 }
 
 body {
