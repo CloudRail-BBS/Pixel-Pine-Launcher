@@ -22,6 +22,10 @@ dist/
 # 服务端本地存储
 apps/server/data/
 
+# 根目录偶尔会出现的安装/运行产物（安装器解压、调试复制）
+/ppl-desktop.exe
+/uninstall.exe
+
 # 本地数据与日志
 *.log
 /ppl-data/

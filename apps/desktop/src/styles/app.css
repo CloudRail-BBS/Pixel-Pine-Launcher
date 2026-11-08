@@ -1919,3 +1919,190 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- 扩展 ---------- */
+
+.ext-warnings {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* 加载顺序：一眼看出谁先谁后，比列表里写「依赖 x」直观得多 */
+.load-order {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+}
+
+.load-order-label {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.load-order-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-2);
+}
+
+.load-order-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.load-order-index {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-family: var(--font);
+}
+
+.ext-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.ext-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(var(--glass-saturate));
+}
+
+/* 停用的整行压暗，但不要低到读不清——用户还得看清自己关了什么 */
+.ext-row.off .ext-title,
+.ext-row.off .ext-meta {
+  opacity: 0.55;
+}
+
+.ext-row.broken {
+  background: var(--danger-soft);
+}
+
+.ext-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ext-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.ext-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.ext-meta code {
+  font-family: var(--mono);
+}
+
+.ext-desc {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-3);
+}
+
+.ext-problem {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--danger);
+}
+
+.ext-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.ext-foot {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+  word-break: break-all;
+}
+
+.ext-foot code {
+  font-family: var(--mono);
+}
+
+/* ---------- 获取游戏弹窗 ---------- */
+
+.mode-tabs {
+  width: fit-content;
+  margin-bottom: 14px;
+}
+
+.acquire-body {
+  display: grid;
+  gap: 10px;
+}
+
+.acquire-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  border: 1px dashed var(--line-strong);
+}
+
+.acquire-path {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 引导卡里的两个按钮并排，主次分明 */
+.gate-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}

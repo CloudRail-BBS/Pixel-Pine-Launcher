@@ -555,8 +555,8 @@ async fn install_game_from_url(
 
     let stamp = std::process::id();
     let temp = std::env::temp_dir().join(format!("ppl-game-{stamp}.zip"));
-    let mut file = std::fs::File::create(&temp)
-        .map_err(|error| format!("创建临时文件失败：{error}"))?;
+    let mut file =
+        std::fs::File::create(&temp).map_err(|error| format!("创建临时文件失败：{error}"))?;
 
     let mut downloaded: u64 = 0;
     let mut last_emit: u64 = 0;
@@ -581,13 +581,7 @@ async fn install_game_from_url(
         // 每 4MB 报一次进度：每块都发事件会把 IPC 打满
         if downloaded - last_emit >= 4 * 1024 * 1024 {
             last_emit = downloaded;
-            let _ = app.emit(
-                "game-progress",
-                GameProgress {
-                    downloaded,
-                    total,
-                },
-            );
+            let _ = app.emit("game-progress", GameProgress { downloaded, total });
         }
     }
 
@@ -618,6 +612,78 @@ async fn install_game_from_url(
     let _ = std::fs::remove_file(&temp);
 
     let install = result.map_err(fail)?;
+    Ok(GameInstallView {
+        root: install.root.to_string_lossy().into_owned(),
+        files: install.files,
+        bytes: install.bytes,
+    })
+}
+
+/// 一次扫描的结果：已装扩展 + 加载计划 + 目录信息。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExtensionsView {
+    /// 扩展目录（可能还不存在，前端据此显示提示语）。
+    dir: String,
+    dir_exists: bool,
+    extensions: Vec<ppl_core::Extension>,
+    /// 加载顺序、缺失依赖、成环、API 版本不兼容，全在这一个结构里
+    plan: ppl_core::LoadPlan,
+}
+
+/// 扫描 PPL 扩展。
+///
+/// 顺带把加载计划算好：顺序算错会让游戏直接崩，缺依赖会让扩展静默失效。
+/// 这两件事都不该等用户启动游戏之后才发现。
+#[tauri::command]
+fn scan_extensions(root: String) -> Result<ExtensionsView, String> {
+    let path = Path::new(&root);
+    let extensions = ppl_core::scan_extensions(path).map_err(fail)?;
+    let plan = ppl_core::build_plan(&extensions);
+    let dir = ppl_core::extensions_dir(path);
+
+    Ok(ExtensionsView {
+        dir_exists: dir.is_dir(),
+        dir: dir.to_string_lossy().into_owned(),
+        extensions,
+        plan,
+    })
+}
+
+/// 导入一个扩展包（.pplx / .zip）。必须含 `ppl-extension.json`。
+#[tauri::command]
+fn import_extension(root: String, path: String) -> Result<ppl_core::Extension, String> {
+    ppl_core::import_extension(Path::new(&root), Path::new(&path)).map_err(fail)
+}
+
+#[tauri::command]
+fn set_extension_enabled(root: String, file: String, enabled: bool) -> Result<(), String> {
+    ppl_core::set_extension_enabled(Path::new(&root), &file, enabled).map_err(fail)
+}
+
+#[tauri::command]
+fn remove_extension(root: String, file: String) -> Result<(), String> {
+    ppl_core::remove_extension(Path::new(&root), &file).map_err(fail)
+}
+
+/// 从本地压缩包安装游戏本体。
+///
+/// 走的是和在线下载同一条落盘路径，只是跳过了下载与哈希校验——
+/// 用户自己选的文件，我们没法知道期望的哈希。
+#[tauri::command]
+fn install_game_from_archive(path: String, target: String) -> Result<GameInstallView, String> {
+    let archive = Path::new(&path);
+    if !archive.is_file() {
+        return Err(format!("{} 不存在", archive.display()));
+    }
+
+    let entry = if cfg!(windows) {
+        "Rusted Warfare.exe"
+    } else {
+        "Rusted Warfare"
+    };
+
+    let install = ppl_core::install_game(archive, Path::new(&target), entry).map_err(fail)?;
     Ok(GameInstallView {
         root: install.root.to_string_lossy().into_owned(),
         files: install.files,
@@ -688,7 +754,12 @@ pub fn run() {
             fetch_game_catalog,
             install_game_from_url,
             games_root,
-            open_url
+            open_url,
+            scan_extensions,
+            import_extension,
+            set_extension_enabled,
+            remove_extension,
+            install_game_from_archive
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

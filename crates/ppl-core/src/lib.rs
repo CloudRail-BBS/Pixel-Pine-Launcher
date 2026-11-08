@@ -24,6 +24,7 @@
 
 pub mod archive;
 pub mod error;
+pub mod extensions;
 pub mod gamedl;
 pub mod import;
 pub mod instance;
@@ -36,6 +37,10 @@ pub use paths::games_root;
 
 pub use archive::{ExtractLimits, ExtractStats, extract_zip, locate_root};
 pub use error::{Error, Result};
+pub use extensions::{
+    Descriptor, Extension, LoadPlan, MissingDependency, build_plan, extensions_dir,
+    import_extension, remove_extension, scan_extensions, set_extension_enabled,
+};
 pub use gamedl::{
     GameInstall, GameManifest, GameVersion, current_platform, install_game, sha256_file,
     verify_sha256,

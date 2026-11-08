@@ -168,3 +168,30 @@ export function formatSize(bytes: number): string {
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
+
+/** 打开文件选择器挑本地压缩包。浏览器预览返回 null。 */
+export async function pickArchive(): Promise<string | null> {
+  if (!isTauri()) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const selected = await open({
+    multiple: false,
+    directory: false,
+    title: "选择《铁锈战争》安装包（zip）",
+    filters: [{ name: "压缩包", extensions: ["zip"] }],
+  });
+  return typeof selected === "string" ? selected : null;
+}
+
+/**
+ * 从本地压缩包安装。
+ *
+ * 不校验哈希：文件是用户自己选的，我们没有「期望值」可比。
+ * 但仍然走同一套安全解压——路径穿越、符号链接一样会拦。
+ */
+export async function installFromArchive(
+  path: string,
+  target: string,
+): Promise<GameInstall> {
+  if (!isTauri()) throw new Error("浏览器预览里不能安装游戏，请在桌面端操作");
+  return invoke<GameInstall>("install_game_from_archive", { path, target });
+}

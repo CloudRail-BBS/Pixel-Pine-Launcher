@@ -14,13 +14,14 @@ import {
   watchSystemTheme,
   type ThemeMode,
 } from "./lib/theme";
+import { GameAcquireDialog } from "./components/GameAcquireDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { LibraryPage } from "./pages/LibraryPage";
+import { ExtensionsPage } from "./pages/ExtensionsPage";
 import { MapsPage } from "./pages/MapsPage";
 import { MarketPage } from "./pages/MarketPage";
 import { NetPage } from "./pages/NetPage";
 import { PublishPage } from "./pages/PublishPage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { GameMap, Instance, Loadout, LocalMod, MarketPackage, RemotePackage } from "./lib/types";
 
@@ -37,6 +38,7 @@ export default function App() {
   const [maps, setMaps] = useState<GameMap[]>([]);
   const [loadingMaps, setLoadingMaps] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [acquireOpen, setAcquireOpen] = useState(false);
   const [market, setMarket] = useState<MarketPackage[]>([]);
   const [marketTotal, setMarketTotal] = useState(0);
   const [marketLoading, setMarketLoading] = useState(false);
@@ -449,7 +451,6 @@ export default function App() {
           page={page}
           onNavigate={setPage}
           instance={instance ?? { id: "", name: "未添加游戏", root: "", source: "manual", version: null, activeLoadout: null }}
-          modCount={mods.length}
         />
 
         <main className="main">
@@ -468,7 +469,7 @@ export default function App() {
                 onLaunch={launch}
                 onAddInstance={addInstance}
                 onBrowse={() => void browseForGame()}
-                onInstalled={(root) => void addInstance(root)}
+                onAcquire={() => setAcquireOpen(true)}
               />
             )}
 
@@ -485,8 +486,8 @@ export default function App() {
               />
             )}
 
-            {page === "mods" && (
-              <PlaceholderPage title="Mod" description="导入、批量管理与冲突排查" />
+            {page === "extensions" && (
+              <ExtensionsPage root={instance?.root ?? null} notify={notify} />
             )}
             {page === "maps" && (
               <MapsPage
@@ -595,6 +596,13 @@ export default function App() {
               </div>
             </div>
           )}
+
+          <GameAcquireDialog
+            open={acquireOpen}
+            installedVersion={instance?.version ?? null}
+            onClose={() => setAcquireOpen(false)}
+            onInstalled={(root) => void addInstance(root)}
+          />
 
           <UpdateBanner />
 

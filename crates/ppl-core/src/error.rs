@@ -54,6 +54,10 @@ pub enum Error {
         actual: String,
     },
 
+    /// 找不到这个扩展。
+    #[error("找不到扩展：{0}")]
+    ExtensionNotFound(String),
+
     /// 版本清单格式不对。
     #[error("版本清单有问题：{0}")]
     Manifest(String),

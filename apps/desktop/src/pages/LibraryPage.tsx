@@ -1,8 +1,7 @@
 import { useState } from "react";
 
-import { GameInstallCard } from "../components/GameInstallCard";
 import { PixelCover } from "../components/PixelCover";
-import { PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
+import { PineMark, PlayIcon, PlusIcon, RefreshIcon } from "../components/Icons";
 import { formatBytes } from "../lib/format";
 import type { Instance, Loadout, LocalMod } from "../lib/types";
 
@@ -19,8 +18,8 @@ interface LibraryPageProps {
   onLaunch: () => void;
   onAddInstance: (root: string) => void;
   onBrowse: () => void;
-  /** 下载安装完成后，按目录登记成实例 */
-  onInstalled: (root: string) => void;
+  /** 打开「获取游戏」弹窗 */
+  onAcquire: () => void;
 }
 
 export function LibraryPage({
@@ -36,7 +35,7 @@ export function LibraryPage({
   onLaunch,
   onAddInstance,
   onBrowse,
-  onInstalled,
+  onAcquire,
 }: LibraryPageProps) {
   const [path, setPath] = useState("");
   const enabledCount = mods.filter((mod) => mod.enabled).length;
@@ -52,7 +51,27 @@ export function LibraryPage({
           </div>
         </header>
 
-        <GameInstallCard onInstalled={onInstalled} onBrowse={onBrowse} />
+        <div className="gate">
+          <div className="gate-icon" aria-hidden="true">
+            <PineMark />
+          </div>
+          <h2 className="gate-title">先找到游戏</h2>
+          <p className="gate-desc">
+            启动器需要知道《铁锈战争》装在哪，才能管理 Mod、地图和扩展。
+            已经装过就选目录；没有的话可以现在下载一份。
+          </p>
+          <div className="gate-actions">
+            <button className="btn btn-primary" onClick={onAcquire}>
+              获取游戏
+            </button>
+            <button className="btn" onClick={onBrowse}>
+              选择已有目录
+            </button>
+          </div>
+          <p className="gate-hint">
+            装到 PPL 自己的目录，不碰 Steam；已有目录只读不改。
+          </p>
+        </div>
 
         <details className="path-fallback">
           <summary>手动输入路径</summary>
@@ -60,7 +79,7 @@ export function LibraryPage({
             <input
               value={path}
               onChange={(event) => setPath(event.target.value)}
-              placeholder="D://Steam//steamapps//common//Rusted Warfare"
+              placeholder="D:////Steam////steamapps////common////Rusted Warfare"
               aria-label="游戏根目录"
             />
           </label>
@@ -88,6 +107,9 @@ export function LibraryPage({
           </p>
         </div>
         <div className="head-actions">
+          <button className="btn btn-sm btn-ghost" onClick={onAcquire}>
+            获取游戏
+          </button>
           <button className="btn" onClick={onRefresh}>
             <RefreshIcon className="nav-icon" />
             重新扫描

@@ -11,7 +11,14 @@ import {
   UploadIcon,
 } from "./Icons";
 
-export type PageId = "library" | "market" | "mods" | "maps" | "net" | "publish" | "settings";
+export type PageId =
+  | "library"
+  | "market"
+  | "extensions"
+  | "maps"
+  | "net"
+  | "publish"
+  | "settings";
 
 interface NavItem {
   id: PageId;
@@ -25,7 +32,8 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-  { id: "mods", label: "Mod", icon: PuzzleIcon },
+  // Mod 已经在「库」里按预设管理，这一格留给加载器扩展
+  { id: "extensions", label: "扩展", icon: PuzzleIcon },
   { id: "maps", label: "地图", icon: MapIcon },
   { id: "net", label: "联机", icon: GlobeIcon },
   { id: "publish", label: "发布", icon: UploadIcon },
@@ -35,10 +43,15 @@ interface SidebarProps {
   page: PageId;
   onNavigate: (page: PageId) => void;
   instance: Instance;
-  modCount: number;
+  extensionCount?: number;
 }
 
-export function Sidebar({ page, onNavigate, instance, modCount }: SidebarProps) {
+export function Sidebar({
+  page,
+  onNavigate,
+  instance,
+  extensionCount = 0,
+}: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -67,7 +80,7 @@ export function Sidebar({ page, onNavigate, instance, modCount }: SidebarProps) 
             item={item}
             active={page === item.id}
             onClick={() => onNavigate(item.id)}
-            count={item.id === "mods" && modCount > 0 ? modCount : undefined}
+            count={item.id === "extensions" && extensionCount > 0 ? extensionCount : undefined}
           />
         ))}
       </nav>

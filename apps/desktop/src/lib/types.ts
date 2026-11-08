@@ -121,3 +121,51 @@ export interface MarketVersion {
 export interface MarketDetail extends RemotePackage {
   versions: MarketVersion[];
 }
+
+/** PPL 扩展描述符（`ppl-extension.json`）。 */
+export interface ExtensionDescriptor {
+  schema: number;
+  id: string;
+  name: string;
+  version: string;
+  apiVersion: number;
+  mainClass: string | null;
+  mixins: string[];
+  dependsOn: string[];
+  loadAfter: string[];
+  loadBefore: string[];
+  author: string;
+  description: string;
+  minGame: string | null;
+}
+
+/** 一个已安装的扩展。 */
+export interface PplExtension {
+  descriptor: ExtensionDescriptor;
+  file: string;
+  size: number;
+  enabled: boolean;
+  /** 描述符读不出来时为 false，problem 里是原因 */
+  valid: boolean;
+  problem: string | null;
+}
+
+export interface MissingDependency {
+  owner: string;
+  missing: string;
+}
+
+/** 加载计划：顺序、缺失依赖、成环、不兼容。 */
+export interface LoadPlan {
+  order: string[];
+  missing: MissingDependency[];
+  cycles: string[][];
+  incompatible: string[];
+}
+
+export interface ExtensionsView {
+  dir: string;
+  dirExists: boolean;
+  extensions: PplExtension[];
+  plan: LoadPlan;
+}
