@@ -1,0 +1,49 @@
+name: Android
+
+# 单独一条 Android 构建：不依赖发版，随时能在 Actions 页面点一下出 APK，
+# 改 Android 代码时也能第一时间发现编译问题（release.yml 只在打 tag 时跑）。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/android/**'
+      - '.github/workflows/android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 构建 APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 仓库里没有 gradle wrapper：用固定版本，和 release.yml 保持一致
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: 编译 debug APK
+        working-directory: apps/android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: 整理产物
+        run: |
+          mkdir -p dist
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/Pixel-Pine-Launcher-${GITHUB_SHA::7}-android.apk"
+          ls -lh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: dist/*.apk
+          # 30 天足够下载，不必长期占用配额
+          retention-days: 30
