@@ -245,7 +245,8 @@ export default function App() {
     <div className="shell">
       <header className="topbar">
         <div className="brand">
-          <img src="/logo.png" alt="" />
+          {/* 不放 logo：后台挂在 /admin/ 下，写死根路径的图标会 404，
+              成了浏览器那个「裂开的图片」占位符，比没有还难看 */}
           PPL 管理后台
         </div>
         <div className="topbar-spacer" />
