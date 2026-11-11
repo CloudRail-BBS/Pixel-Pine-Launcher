@@ -128,13 +128,19 @@ fn panic_to_500(payload: Box<dyn std::any::Any + Send + 'static>) -> axum::respo
         .map(|value| (*value).to_string())
         .or_else(|| payload.downcast_ref::<String>().cloned())
         .unwrap_or_else(|| "(无描述)".to_string());
-    tracing::error!(%detail, "请求处理时 panic，已按 500 返回");
+    // 和 ApiError::internal 一样带个短编号：panic 与普通内部错误对外文案相同，
+    // 没有编号时只能靠时间戳去猜是哪一次。编号必须同时进日志，否则前端显示了
+    // 一个在日志里搜不到的数字，反而更误导。
+    let reference = uuid::Uuid::new_v4().simple().to_string();
+    let reference = reference[..8].to_string();
+    tracing::error!(%detail, %reference, "请求处理时 panic，已按 500 返回");
 
     (
         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         axum::Json(serde_json::json!({
             "code": "panic",
-            "error": "服务端出错了，稍后再试",
+            "error": format!("服务端出错了，稍后再试（错误号 {reference}）"),
+            "reference": reference,
         })),
     )
         .into_response()

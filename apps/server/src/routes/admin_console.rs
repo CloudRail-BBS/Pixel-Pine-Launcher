@@ -48,8 +48,11 @@ pub async fn stats(State(state): State<AppState>, user: AuthUser) -> Result<Json
     )
     .fetch_one(&state.pool)
     .await?;
+    // 必须显式转 ::bigint。Postgres 的 sum(bigint) 返回 numeric，
+    // sqlx 不会替你转成 i64，解码阶段直接报 ColumnDecode，
+    // 对外就是一句「服务端出错了」——排查时完全看不出是这条 SQL。
     let downloads: i64 =
-        sqlx::query_scalar("SELECT coalesce(sum(download_count), 0) FROM versions")
+        sqlx::query_scalar("SELECT coalesce(sum(download_count), 0)::bigint FROM versions")
             .fetch_one(&state.pool)
             .await?;
     let users: i64 = sqlx::query_scalar("SELECT count(*) FROM users")

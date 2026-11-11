@@ -6,6 +6,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct ApiError {
@@ -52,11 +53,16 @@ impl ApiError {
     }
 
     pub fn internal(error: impl std::fmt::Display) -> Self {
-        tracing::error!(%error, "服务端内部错误");
+        // 细节不抛给前端，但留一个短编号：
+        // 否则线上只看到「服务端出错了」，运维得翻整段日志猜是哪一条请求。
+        // 前端把这个编号显示出来，用户一说就能直接 grep 到那一行。
+        let reference = Uuid::new_v4().simple().to_string();
+        let reference = reference[..8].to_string();
+        tracing::error!(%error, %reference, "服务端内部错误");
         Self::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             "internal",
-            "服务端出错了，稍后再试",
+            format!("服务端出错了，稍后再试（错误号 {reference}）"),
         )
     }
 }
