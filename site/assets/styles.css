@@ -338,6 +338,7 @@ img {
   margin-top: 18px;
   font-size: 13px;
   color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── 界面示意 ─────────────────────────────────────────────── */
@@ -532,7 +533,7 @@ img {
 
 .points {
   max-width: var(--wide);
-  margin: 96px auto 0;
+  margin: 88px auto 0;
   padding: 0 24px;
 }
 
@@ -569,7 +570,7 @@ img {
 .feature {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: 132px 24px 0;
+  padding: 120px 24px 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 72px;
@@ -943,8 +944,8 @@ img {
 
 .download {
   position: relative;
-  margin-top: 140px;
-  padding: 100px 24px;
+  margin-top: 120px;
+  padding: 96px 24px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background:
@@ -991,9 +992,17 @@ img {
     background 200ms var(--ease);
 }
 
+.dl-card {
+  transition:
+    border-color 200ms var(--ease),
+    background 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
 .dl-card:hover {
   border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.035);
+  transform: translateY(-2px);
 }
 
 .dl-card.is-current {
@@ -1026,6 +1035,33 @@ img {
   line-height: 1.6;
 }
 
+/* 版本 + 体积：脚本拿到 Release 后才显示，拿不到就整行不占位 */
+.dl-meta {
+  margin-top: -4px;
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-meta[hidden] {
+  display: none;
+}
+
+/* 光加一圈蓝边，用户看不出为什么高亮；写清楚是「本机」 */
+.dl-card.is-current .dl-name::after {
+  content: "本机";
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  vertical-align: 3px;
+}
+
 .dl-foot {
   margin-top: 30px;
   font-size: 13px;
@@ -1049,22 +1085,45 @@ img {
 /* ── 免责声明 ─────────────────────────────────────────────── */
 
 .disclaimer {
-  padding: 96px 24px;
+  padding: 88px 24px;
 }
 
 .disclaimer-inner {
-  max-width: var(--narrow);
+  max-width: var(--wide);
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px 48px;
+  align-items: start;
 }
 
 .disclaimer h2 {
-  font-size: 20px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
 }
 
 .disclaimer p {
-  margin-top: 14px;
+  /* 两段正文都归到右列：不指定时第二段会掉到左列标题下面 */
+  grid-column: 2;
+  margin: 0 0 12px;
+  max-width: 68ch;
   font-size: 14px;
+  line-height: 1.75;
   color: var(--text-3);
+  text-wrap: pretty;
+}
+
+@media (max-width: 760px) {
+  .disclaimer-inner {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .disclaimer p {
+    grid-column: 1;
+  }
 }
 
 .disclaimer strong {
@@ -1119,7 +1178,7 @@ img {
 .footer-copy {
   width: 100%;
   font-size: 12.5px;
-  color: #6b6b74;
+  color: var(--text-3);
 }
 
 /* ── 滚动进场 ─────────────────────────────────────────────── */

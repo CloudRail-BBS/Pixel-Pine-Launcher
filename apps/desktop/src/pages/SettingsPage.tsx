@@ -77,14 +77,7 @@ export function SettingsPage({
             </div>
           </div>
 
-          <div
-            style={{
-              marginTop: 16,
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 10,
-            }}
-          >
+          <div className="palette">
             <Swatch label="画布" color="var(--bg)" />
             <Swatch label="卡片" color="var(--bg-elev)" />
             <Swatch label="主色" color="var(--accent)" />
@@ -130,18 +123,12 @@ export function SettingsPage({
   );
 }
 
+/** 配色预览：一块颜色 + 名字就够。做成大片色块时，主色那块亮得抢戏。 */
 function Swatch({ label, color }: { label: string; color: string }) {
   return (
-    <div
-      style={{
-        border: "1px solid var(--line)",
-        borderRadius: "var(--r-md)",
-        overflow: "hidden",
-        background: "var(--bg-elev-2)",
-      }}
-    >
-      <div style={{ height: 34, background: color }} />
-      <div style={{ padding: "6px 9px", fontSize: 11, color: "var(--text-3)" }}>{label}</div>
+    <div className="swatch">
+      <span className="swatch-dot" style={{ background: color }} aria-hidden="true" />
+      <span>{label}</span>
     </div>
   );
 }

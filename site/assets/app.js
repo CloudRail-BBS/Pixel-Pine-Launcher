@@ -89,6 +89,19 @@ function setupPlatform() {
 
 const REPO = "CloudRail-BBS/Pixel-Pine-Launcher";
 
+/** 字节数 → 人话。只用于下载卡上的体积提示。 */
+function formatSize(bytes) {
+  if (!bytes || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+
 /** 文件名 → 平台。只看安装包，签名文件跳过。 */
 function platformOfAsset(name) {
   const lower = name.toLowerCase();
@@ -135,20 +148,38 @@ async function refreshDownloads(currentPlatform) {
       const prefer = currentPlatform === "macos" && isArm ? 2 : isIntel ? 1 : 2;
       const held = picked.get(platform);
       if (!held || prefer > held.prefer) {
-        picked.set(platform, { url: asset.browser_download_url, prefer });
+        picked.set(platform, {
+          url: asset.browser_download_url,
+          size: asset.size,
+          prefer,
+        });
       }
       continue;
     }
 
     if (!picked.has(platform)) {
-      picked.set(platform, { url: asset.browser_download_url, prefer: 1 });
+      picked.set(platform, {
+        url: asset.browser_download_url,
+        size: asset.size,
+        prefer: 1,
+      });
     }
   }
+
+  const tag = String(release.tag_name ?? "").replace(/^v/, "");
 
   for (const [platform, asset] of picked) {
     document.querySelectorAll(`.dl-card[data-dl="${platform}"] [data-dl-link]`).forEach((link) => {
       link.href = asset.url;
     });
+
+    // 版本 + 体积：下载前最想知道的两件事，没有它们只能点进去看 Release
+    const meta = document.querySelector(`.dl-card[data-dl="${platform}"] [data-dl-meta]`);
+    if (meta && tag) {
+      const size = formatSize(asset.size);
+      meta.textContent = size ? `v${tag} · ${size}` : `v${tag}`;
+      meta.hidden = false;
+    }
   }
 
   // 版本号有了，把「全部版本」也指到这一次的 Release

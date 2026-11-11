@@ -28,8 +28,17 @@ import type { GameMap, Instance, Loadout, LocalMod, MarketPackage, RemotePackage
 // 构建期由 vite 注入（见 vite.config.ts 的 define），别在这里写死
 const APP_VERSION = __APP_VERSION__;
 
+const PAGES: PageId[] = ["library", "market", "extensions", "maps", "net", "publish", "settings"];
+
+/** `?page=market` 直接落到某个视图：调样式、排查问题时不用一路点进去。 */
+function initialPage(): PageId {
+  if (typeof window === "undefined") return "library";
+  const value = new URLSearchParams(window.location.search).get("page");
+  return PAGES.includes(value as PageId) ? (value as PageId) : "library";
+}
+
 export default function App() {
-  const [page, setPage] = useState<PageId>("library");
+  const [page, setPage] = useState<PageId>(initialPage);
   const [demo, setDemo] = useState(false);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [instanceId, setInstanceId] = useState<string | null>(null);

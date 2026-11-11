@@ -160,9 +160,9 @@ export function Packages({ onError, onToast }: PackagesProps) {
               <th>资源</th>
               <th>类型</th>
               <th>状态</th>
-              <th>最新版本</th>
-              <th>体积</th>
-              <th>下载</th>
+              <th className="cell-num">最新版本</th>
+              <th className="cell-num">体积</th>
+              <th className="cell-num">下载</th>
               <th>更新时间</th>
               <th />
             </tr>
@@ -178,7 +178,8 @@ export function Packages({ onError, onToast }: PackagesProps) {
             {!loading && items.length === 0 && (
               <tr>
                 <td colSpan={8} className="table-empty">
-                  没有匹配的资源
+                  <strong>没有匹配的资源</strong>
+                  换个关键词，或把状态筛选放宽一点
                 </td>
               </tr>
             )}
@@ -195,9 +196,9 @@ export function Packages({ onError, onToast }: PackagesProps) {
                     <td>
                       <span className={badge.cls}>{badge.text}</span>
                     </td>
-                    <td>{row.version ? `v${row.version}` : "—"}</td>
-                    <td>{formatSize(row.size)}</td>
-                    <td>{row.downloads}</td>
+                    <td className="cell-num">{row.version ? `v${row.version}` : "—"}</td>
+                    <td className="cell-num">{formatSize(row.size)}</td>
+                    <td className="cell-num">{row.downloads}</td>
                     <td className="cell-sub">{row.updated}</td>
                     <td onClick={(event) => event.stopPropagation()}>
                       <div className="row-actions">
@@ -311,7 +312,8 @@ export function Packages({ onError, onToast }: PackagesProps) {
                       {detail.versions.length === 0 && (
                         <tr>
                           <td colSpan={6} className="table-empty">
-                            还没有上传过版本
+                            <strong>还没有上传过版本</strong>
+                            作者提交新版本后会出现在这里
                           </td>
                         </tr>
                       )}
@@ -319,8 +321,8 @@ export function Packages({ onError, onToast }: PackagesProps) {
                         <tr key={version.version}>
                           <td>v{version.version}</td>
                           <td>{VERSION_STATUS[version.status] ?? version.status}</td>
-                          <td>{formatSize(version.size)}</td>
-                          <td>{version.downloads}</td>
+                          <td className="cell-num">{formatSize(version.size)}</td>
+                          <td className="cell-num">{version.downloads}</td>
                           <td className="cell-mono">
                             {version.sha256 ? `${version.sha256.slice(0, 12)}…` : "—"}
                           </td>

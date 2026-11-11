@@ -794,8 +794,9 @@ textarea {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  max-width: 1180px;
+  gap: 20px;
+  /* 1440 宽的屏幕上留白会全部堆在右边，1200 左右读起来更稳 */
+  max-width: 1200px;
 }
 
 .page-head {
@@ -807,17 +808,19 @@ textarea {
 
 .page-title {
   margin: 0;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .page-desc {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
+  max-width: 64ch;
   font-size: 12.5px;
-  line-height: 1.7;
+  line-height: 1.65;
   color: var(--text-3);
-  max-width: 62ch;
+  text-wrap: pretty;
 }
 
 .page-hint {
@@ -841,7 +844,7 @@ textarea {
 
 .cards {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .cards-4 {
@@ -854,22 +857,28 @@ textarea {
 
 .card {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--card-bg);
   backdrop-filter: blur(var(--card-blur));
   -webkit-backdrop-filter: blur(var(--card-blur));
   box-shadow: inset 0 1px 0 var(--glass-hi);
 }
 
+/* 待办卡：数字是页面第一眼要找的东西，所以给它单独的尺寸档
+   （30px / 600），背景读数走 16px / 500，一眼就能分出主次。 */
 .metric {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
+  gap: 3px;
+  min-height: 124px;
+  padding: 17px 18px 14px;
   text-align: left;
+  overflow: hidden;
   transition:
     border-color 180ms var(--ease-out),
-    background 180ms var(--ease-out);
+    background 180ms var(--ease-out),
+    transform 120ms var(--ease-out);
 }
 
 .metric:hover {
@@ -877,15 +886,25 @@ textarea {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.metric:active {
+  transform: scale(0.99);
+}
+
 .metric-num {
-  font-size: 26px;
+  font-size: 30px;
+  line-height: 1.15;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
+/* 有活要干才点上强调色；一排全是 0 的高亮只会让人麻木 */
+.metric.is-hot .metric-num {
+  color: var(--accent);
+}
+
 .metric-label {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-2);
 }
 
@@ -894,10 +913,85 @@ textarea {
   color: var(--text-3);
 }
 
+.metric-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  transition: color 160ms var(--ease-out);
+}
+
+.metric:hover .metric-go {
+  color: var(--accent);
+}
+
+.metric-arrow {
+  display: inline-block;
+  transition: transform 160ms var(--ease-out);
+}
+
+.metric:hover .metric-arrow {
+  transform: translateX(3px);
+}
+
+/* ---------- 概览：日志 + 右侧读数 ---------- */
+
+.overview-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(248px, 0.72fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.aside-stats {
+  padding: 0 16px 16px;
+}
+
+.stat-list {
+  display: grid;
+  margin-top: -6px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.stat-row:first-child {
+  border-top: 0;
+}
+
+.stat-label {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.aside-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-3);
+  opacity: 0.85;
+}
+
 /* ---------- 面板 ---------- */
 
 .panel {
-  padding: 0 16px 14px;
+  padding: 0 16px 12px;
 }
 
 .panel-head {
@@ -905,7 +999,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 2px 11px;
+  padding: 14px 2px 12px;
   font-size: 13px;
   font-weight: 500;
 }
@@ -917,9 +1011,21 @@ textarea {
 }
 
 .panel-empty {
-  padding: 26px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 34px 0;
   text-align: center;
+}
+
+.panel-empty-title {
   font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.panel-empty-hint {
+  font-size: 11.5px;
   color: var(--text-3);
 }
 
@@ -929,22 +1035,44 @@ textarea {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.log-head,
+.log-row {
   display: grid;
-  gap: 1px;
+  grid-template-columns: 92px 96px minmax(0, 1fr) 150px;
+  gap: 12px;
+  align-items: center;
+  padding: 0 8px;
+  margin: 0 -8px;
+}
+
+.log-head {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.log-head > span:last-child {
+  text-align: right;
 }
 
 .log-row {
-  display: grid;
-  grid-template-columns: 96px 108px 1fr 160px;
-  gap: 12px;
-  align-items: center;
-  padding: 9px 2px;
+  padding-block: 10px;
   font-size: 12.5px;
   border-top: 1px solid var(--line);
+  border-radius: 8px;
+  transition: background 140ms var(--ease-out);
 }
 
-.log-row:first-child {
+.log-head + .log-row {
   border-top: 0;
+}
+
+.log-row:hover {
+  background: var(--hover);
 }
 
 .log-time,
@@ -1234,4 +1362,116 @@ select.field {
   .log-actor {
     display: none;
   }
+}
+
+/* ---------- 交互基线 ---------- */
+
+/* 键盘用户看不到焦点在哪儿，是这个后台最实际的可访问性缺口。
+   只在键盘操作时出现，鼠标点击不闪蓝框。 */
+:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.btn:focus-visible,
+.field:focus-visible {
+  outline-offset: 1px;
+}
+
+/* 按下时给一点形变，比只换背景更像「按到了」 */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn {
+  transition:
+    background 160ms var(--ease-out),
+    border-color 160ms linear,
+    opacity 160ms linear,
+    transform 90ms var(--ease-out);
+}
+
+/* 页签：当前项的对比度要压得住下面的表格标题 */
+.tab {
+  font-size: 12.5px;
+}
+
+.tab.active {
+  font-weight: 500;
+}
+
+.tab-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 数值列右对齐 + 等宽数字：一列数字左对齐时，位数不同会像错位 */
+.table .cell-num,
+.table th.cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  backdrop-filter: blur(8px);
+}
+
+/* 空表格不要只留一行灰字，给出「为什么空」 */
+.table-empty strong {
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+@media (max-width: 1080px) {
+  .overview-split {
+    grid-template-columns: 1fr;
+  }
+
+  .cards-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 概览右栏的常用操作：把「去左边找入口」这一步省掉 */
+.aside-actions {
+  display: grid;
+  gap: 2px;
+  margin: 14px -8px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.aside-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  text-align: left;
+  transition:
+    background 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.aside-link > span {
+  color: var(--text-3);
+  transition: transform 140ms var(--ease-out);
+}
+
+.aside-link:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.aside-link:hover > span {
+  transform: translateX(3px);
+  color: var(--accent);
 }
