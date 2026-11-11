@@ -46,8 +46,7 @@ pub struct LoaderStatus {
 pub struct RwmlExtension {
     pub id: String,
     /// 对方描述符没有 name 字段，展示名就用 id。
-    pub name: String,
-    pub file: String,
+    pub name: String,    pub file: String,
     pub main_class: Option<String>,
     pub ui_framework: Option<String>,
     pub depends_on: Vec<String>,
@@ -60,6 +59,95 @@ pub struct RwmlExtension {
 /// 扩展目录。
 pub fn extensions_dir(root: &Path) -> PathBuf {
     root.join(RWML_DIR)
+}
+
+/// 同一个 id 被多个 jar 声明。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateId {
+    pub id: String,
+    pub files: Vec<String>,
+}
+
+/// 一条缺失依赖。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissingDependency {
+    pub owner: String,
+    pub missing: String,
+}
+
+/// 兼容层的检查结果。
+///
+/// 这里**不做加载顺序**：排序是对方加载器的事，我们算出来也不算数。
+/// 只做启动器能负责的静态检查——同一 id 多份、依赖缺失、坏包。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RwmlPlan {
+    /// 同时启用、且声明了同一个 id 的包。
+    pub duplicate_ids: Vec<DuplicateId>,
+    /// 启用的扩展声明了依赖，但目录里没有（或只是被停用）。
+    pub missing: Vec<MissingDependency>,
+    /// 同一个文件名同时出现在启用与停用目录：正常操作不会出现，出现就是状态坏了。
+    pub same_name: Vec<String>,
+}
+
+/// 静态检查：重复 id、缺失依赖、同名冲突。
+///
+/// 只检查**已启用且描述符可读**的扩展——停用的包不会进加载器，
+/// 把它们算进重复或缺失只会制造噪音。
+pub fn analyze(extensions: &[RwmlExtension]) -> RwmlPlan {
+    use std::collections::BTreeMap;
+
+    let mut plan = RwmlPlan::default();
+    let active: Vec<&RwmlExtension> = extensions
+        .iter()
+        .filter(|item| item.enabled && item.valid)
+        .collect();
+
+    // 重复 id：按 id 聚一次，文件多于一个就是冲突
+    let mut by_id: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for item in &active {
+        by_id
+            .entry(item.id.as_str())
+            .or_default()
+            .push(item.file.as_str());
+    }
+    for (id, files) in by_id {
+        if files.len() > 1 {
+            plan.duplicate_ids.push(DuplicateId {
+                id: id.to_string(),
+                files: files.into_iter().map(str::to_string).collect(),
+            });
+        }
+    }
+
+    // 缺失依赖：只认「启用且可读」的 id
+    let installed: std::collections::HashSet<&str> =
+        active.iter().map(|item| item.id.as_str()).collect();
+    for item in &active {
+        for dep in &item.depends_on {
+            if !installed.contains(dep.as_str()) {
+                plan.missing.push(MissingDependency {
+                    owner: item.id.clone(),
+                    missing: dep.clone(),
+                });
+            }
+        }
+    }
+
+    // 同名文件同时存在于两个目录：扫描会把它们都列出来
+    let mut names: BTreeMap<&str, usize> = BTreeMap::new();
+    for item in extensions {
+        *names.entry(item.file.as_str()).or_default() += 1;
+    }
+    plan.same_name = names
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(name, _)| name.to_string())
+        .collect();
+
+    plan
 }
 
 /// 探测加载器。
@@ -450,5 +538,66 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert!(!list[0].valid);
         assert!(list[0].problem.is_some());
+    }
+
+    fn sample(id: &str, file: &str, enabled: bool, deps: &[&str]) -> RwmlExtension {
+        RwmlExtension {
+            id: id.to_string(),
+            name: id.to_string(),
+            file: file.to_string(),
+            main_class: None,
+            ui_framework: None,
+            depends_on: deps.iter().map(|dep| dep.to_string()).collect(),
+            size: 0,
+            enabled,
+            valid: true,
+            problem: None,
+        }
+    }
+
+    #[test]
+    fn flags_duplicate_ids_and_missing_deps() {
+        let list = vec![
+            sample("io.a", "a.jar", true, &[]),
+            sample("io.a", "a-copy.jar", true, &[]),
+            sample("io.b", "b.jar", true, &["io.a", "io.gone"]),
+            // 停用的包不参与检查：它不会进加载器
+            sample("io.c", "c.jar", false, &["io.zzz"]),
+        ];
+
+        let plan = analyze(&list);
+        assert_eq!(plan.duplicate_ids.len(), 1);
+        assert_eq!(plan.duplicate_ids[0].id, "io.a");
+        assert_eq!(plan.duplicate_ids[0].files.len(), 2);
+        assert_eq!(plan.missing.len(), 1);
+        assert_eq!(plan.missing[0].owner, "io.b");
+        assert_eq!(plan.missing[0].missing, "io.gone");
+        assert!(plan.same_name.is_empty());
+    }
+
+    #[test]
+    fn clean_set_has_no_findings() {
+        let list = vec![
+            sample("io.api", "api.jar", true, &[]),
+            sample("io.client", "client.jar", true, &["io.api"]),
+        ];
+
+        let plan = analyze(&list);
+        assert!(plan.duplicate_ids.is_empty());
+        assert!(plan.missing.is_empty());
+        assert!(plan.same_name.is_empty());
+    }
+
+    #[test]
+    fn detects_same_file_in_both_dirs() {
+        let list = vec![
+            sample("io.a", "a.jar", true, &[]),
+            sample("io.a", "a.jar", false, &[]),
+        ];
+
+        let plan = analyze(&list);
+        assert_eq!(plan.same_name, vec!["a.jar".to_string()]);
+        // 一启用一停用不算重复 id
+        assert!(plan.duplicate_ids.is_empty());
     }
 }

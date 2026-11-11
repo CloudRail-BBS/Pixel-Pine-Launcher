@@ -159,7 +159,78 @@ export async function pickPackage(): Promise<string | null> {
  * 不加载、不注入，也不替用户安装加载器本体。
  */
 
+/** 浏览器预览用的 RWML 假数据：故意带重复 id、缺依赖和一个坏包。 */
+const DEMO_RWML: RwmlView = {
+  loader: {
+    installed: false,
+    originalBackup: false,
+    runtime: false,
+    dir: "D:/Steam/steamapps/common/Rusted Warfare/extensions",
+    dirExists: true,
+  },
+  dir: "D:/Steam/steamapps/common/Rusted Warfare/extensions",
+  extensions: [
+    {
+      id: "io.github.rwpp",
+      name: "io.github.rwpp",
+      file: "rwpp-client.jar",
+      mainClass: "io.github.rwpp.Client",
+      uiFramework: "rwpp",
+      dependsOn: ["io.github.rwpp.api", "io.github.rwpp.core@1.6"],
+      size: 1_204_000,
+      enabled: true,
+      valid: true,
+      problem: null,
+    },
+    {
+      id: "io.github.rwpp",
+      name: "io.github.rwpp",
+      file: "rwpp-client-copy.jar",
+      mainClass: "io.github.rwpp.Client",
+      uiFramework: "rwpp",
+      dependsOn: [],
+      size: 1_204_000,
+      enabled: true,
+      valid: true,
+      problem: null,
+    },
+    {
+      id: "rwpp-lib",
+      name: "rwpp-lib",
+      file: "rwpp-lib.jar",
+      mainClass: null,
+      uiFramework: null,
+      dependsOn: [],
+      size: 320_000,
+      enabled: false,
+      valid: true,
+      problem: null,
+    },
+    {
+      id: "broken.jar",
+      name: "broken.jar",
+      file: "broken.jar",
+      mainClass: null,
+      uiFramework: null,
+      dependsOn: [],
+      size: 9_800,
+      enabled: true,
+      valid: false,
+      problem: "jar 里没有 META-INF/extension.properties，不是 RWML 扩展",
+    },
+  ],
+  plan: {
+    duplicateIds: [{ id: "io.github.rwpp", files: ["rwpp-client.jar", "rwpp-client-copy.jar"] }],
+    missing: [
+      { owner: "io.github.rwpp", missing: "io.github.rwpp.api" },
+      { owner: "io.github.rwpp", missing: "io.github.rwpp.core" },
+    ],
+    sameName: [],
+  },
+};
+
 export async function scanRwml(root: string): Promise<RwmlView> {
+  if (!isTauri()) return DEMO_RWML;
   return invoke<RwmlView>("scan_rwml", { root });
 }
 

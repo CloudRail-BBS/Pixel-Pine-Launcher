@@ -18,7 +18,13 @@ import {
   setRwmlEnabled,
   type ExtensionFormat,
 } from "../lib/extensions";
-import type { ExtensionsView, PplExtension, RwmlExtension, RwmlView } from "../lib/types";
+import type {
+  ExtensionsView,
+  LoadPlan,
+  PplExtension,
+  RwmlExtension,
+  RwmlView,
+} from "../lib/types";
 
 /**
  * 扩展页。
@@ -137,8 +143,11 @@ export function ExtensionsPage({
   const issues = ppl
     ? ppl.plan.missing.length + ppl.plan.cycles.length + ppl.plan.incompatible.length
     : 0;
+  const rwmlIssues = rwml
+    ? rwml.plan.duplicateIds.length + rwml.plan.missing.length + rwml.plan.sameName.length
+    : 0;
   const broken = rows.filter((item) => !item.valid).length;
-  const attention = issues + broken;
+  const attention = (format === "ppl" ? issues : rwmlIssues) + broken;
 
   return (
     <>
@@ -265,6 +274,7 @@ export function ExtensionsPage({
                   <PplCard
                     key={item.file}
                     item={item as PplExtension}
+                    plan={ppl.plan}
                     busy={busy === item.file}
                     onToggle={() => void toggle(item)}
                     onRemove={() => setRemoveTarget(item)}
@@ -285,27 +295,67 @@ export function ExtensionsPage({
 
       {root && format === "rwml" && rwml && (
         <>
+          <div className="ext-metrics">
+            <div className="ext-metric">
+              <span className="ext-metric-num">{rows.length}</span>
+              <span className="ext-metric-label">已安装</span>
+              <span className="ext-metric-hint">
+                {broken > 0 ? `${broken} 个包读不出来` : "全部可读"}
+              </span>
+            </div>
+            <div className="ext-metric">
+              <span className="ext-metric-num">{enabledCount}</span>
+              <span className="ext-metric-label">已启用</span>
+              <span className="ext-metric-hint">
+                {rwml.loader.installed ? "加载器已检测到" : "未检测到 RWML 加载器"}
+              </span>
+            </div>
+            <div className={`ext-metric${attention > 0 ? " has-issue" : ""}`}>
+              <span className="ext-metric-num">{attention}</span>
+              <span className="ext-metric-label">需要处理</span>
+              <span className="ext-metric-hint">
+                {attention > 0 ? "重复 id、缺依赖或坏包" : "没有阻塞项"}
+              </span>
+            </div>
+          </div>
+
           <RwmlNotice view={rwml} />
-          {rows.length === 0 && !loading ? (
-            <div className="empty">
-              <div>还没有安装 RWML 扩展</div>
-              <div style={{ fontSize: 12 }}>
-                RWML 扩展是 <code>.jar</code>，里面带 <code>META-INF/extension.properties</code>
+
+          <section className="ext-section">
+            <div className="ext-section-head">
+              <h2>已安装</h2>
+              <span className="ext-section-hint">兼容模式只做文件管理，加载由 RWML 负责</span>
+            </div>
+
+            {rows.length === 0 && !loading ? (
+              <div className="empty ext-empty">
+                <div className="ext-empty-mark" aria-hidden="true">
+                  <PuzzleIcon />
+                </div>
+                <div className="ext-empty-title">还没有安装 RWML 扩展</div>
+                <p className="ext-empty-desc">
+                  RWML 扩展是 <code>.jar</code>，描述符在校验 <code>META-INF/extension.properties</code>。
+                  建议优先用 PPL 格式；兼容模式只是让已有的 jar 也能在这里管理。
+                </p>
+                <button className="btn btn-primary btn-sm" onClick={() => void importFromDialog()}>
+                  选择 .jar 文件
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="ext-list">
-              {rows.map((item) => (
-                <ExtensionRow
-                  key={item.file}
-                  item={item}
-                  busy={busy === item.file}
-                  onToggle={() => void toggle(item)}
-                  onRemove={() => setRemoveTarget(item)}
-                />
-              ))}
-            </div>
-          )}
+            ) : (
+              <div className="ext-cards">
+                {rows.map((item) => (
+                  <RwmlCard
+                    key={item.file}
+                    item={item as RwmlExtension}
+                    view={rwml}
+                    busy={busy === item.file}
+                    onToggle={() => void toggle(item)}
+                    onRemove={() => setRemoveTarget(item)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
 
@@ -348,26 +398,16 @@ function displayName(item: PplExtension | RwmlExtension): string {
   return "descriptor" in item ? item.descriptor.name : item.name;
 }
 
-function itemId(item: PplExtension | RwmlExtension): string {
-  return "descriptor" in item ? item.descriptor.id : item.id;
-}
-
-function itemDeps(item: PplExtension | RwmlExtension): string[] {
-  return "descriptor" in item ? item.descriptor.dependsOn : item.dependsOn;
-}
-
-function itemVersion(item: PplExtension | RwmlExtension): string {
-  return "descriptor" in item ? item.descriptor.version : "";
-}
-
 /** PPL 扩展卡片：默认只给一眼能扫的信息，描述符细节收进 <details>。 */
 function PplCard({
   item,
+  plan,
   busy,
   onToggle,
   onRemove,
 }: {
   item: PplExtension;
+  plan: LoadPlan;
   busy: boolean;
   onToggle: () => void;
   onRemove: () => void;
@@ -376,6 +416,14 @@ function PplCard({
   const issues: string[] = [];
   if (!item.valid) issues.push(item.problem ?? "描述符读不出来");
   if (descriptor.apiVersion > 1) issues.push(`需要运行时 API ${descriptor.apiVersion}`);
+
+  // 把加载计划里的问题归到具体扩展头上：列表里就能看出是哪几个坏了，
+  // 不用再去读顶部那段汇总。
+  const inCycle = plan.cycles.some((group) => group.includes(descriptor.id));
+  const missingDeps = plan.missing
+    .filter((entry) => entry.owner === descriptor.id)
+    .map((entry) => entry.missing);
+  const incompatible = plan.incompatible.includes(descriptor.id);
 
   const orderHint = [
     descriptor.loadAfter.length > 0 && `在 ${descriptor.loadAfter.join("、")} 之后`,
@@ -397,6 +445,9 @@ function PplCard({
             {descriptor.version && <span className="badge">{descriptor.version}</span>}
             {!item.enabled && <span className="badge badge-muted">已停用</span>}
             {!item.valid && <span className="badge badge-danger">包已损坏</span>}
+            {inCycle && <span className="badge badge-danger">循环依赖</span>}
+            {missingDeps.length > 0 && <span className="badge badge-warn">缺依赖</span>}
+            {incompatible && <span className="badge badge-warn">API 过高</span>}
           </div>
 
           {descriptor.description && <p className="ext-card-desc">{descriptor.description}</p>}
@@ -415,6 +466,15 @@ function PplCard({
               {issue}
             </p>
           ))}
+
+          {inCycle && (
+            <p className="ext-problem">它和其它扩展互相依赖成环，整组都不会加载。</p>
+          )}
+          {missingDeps.length > 0 && (
+            <p className="ext-problem">
+              缺少依赖 {missingDeps.join("、")}，这个扩展会被跳过。
+            </p>
+          )}
 
           <details className="ext-details">
             <summary>描述符细节</summary>
@@ -481,6 +541,8 @@ function LoadOrder({ view }: { view: ExtensionsView }) {
 
 /** RWML 模式的提示：装没装加载器、停用方式未验证。 */
 function RwmlNotice({ view }: { view: RwmlView }) {
+  const { plan } = view;
+
   return (
     <div className="ext-warnings">
       {!view.loader.installed && (
@@ -494,12 +556,134 @@ function RwmlNotice({ view }: { view: RwmlView }) {
           加载器已安装，但没看到 <code>rwml-runtime</code>；首次启动可能需要联网下载运行时。
         </div>
       )}
+
+      {plan.duplicateIds.map((entry) => (
+        <div className="notice notice-error" key={entry.id}>
+          <code>{entry.id}</code> 被 {entry.files.length} 个包同时声明（{entry.files.join("、")}）。
+          加载器谁先谁后没有保证，建议只留一个。
+        </div>
+      ))}
+
+      {plan.missing.length > 0 && (
+        <div className="notice">
+          {plan.missing.map((entry) => (
+            <div key={`${entry.owner}-${entry.missing}`}>
+              《{entry.owner}》依赖 <code>{entry.missing}</code>，但目录里没有启用中的同名扩展
+            </div>
+          ))}
+        </div>
+      )}
+
+      {plan.sameName.length > 0 && (
+        <div className="notice notice-error">
+          这些文件同时存在于启用与停用目录，状态不一致：{plan.sameName.join("、")}。
+          删掉停用目录里的那一份即可。
+        </div>
+      )}
+
       <div className="notice">
         兼容模式只做文件管理：读取对方描述符展示，开关是移动文件。
         「停用」把 jar 移进 <code>extensions/.disabled/</code>，这一点尚未实测，
         若发现停用不生效请告诉我。
       </div>
     </div>
+  );
+}
+
+/** RWML 扩展卡片：字段比 PPL 少，但同样把问题标在卡片上。 */
+function RwmlCard({
+  item,
+  view,
+  busy,
+  onToggle,
+  onRemove,
+}: {
+  item: RwmlExtension;
+  view: RwmlView;
+  busy: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+}) {
+  const duplicate = view.plan.duplicateIds.find(
+    (entry) => entry.id === item.id && entry.files.includes(item.file),
+  );
+  const missingDeps = view.plan.missing
+    .filter((entry) => entry.owner === item.id)
+    .map((entry) => entry.missing);
+  const sameName = view.plan.sameName.includes(item.file);
+
+  return (
+    <article className={`ext-card${item.enabled ? "" : " off"}${item.valid ? "" : " broken"}`}>
+      <div className="ext-card-main">
+        <div className="ext-card-icon" aria-hidden="true">
+          <PuzzleIcon />
+        </div>
+
+        <div className="ext-card-body">
+          <div className="ext-card-title">
+            <span className="ext-name">{item.id}</span>
+            {item.uiFramework && <span className="badge">{item.uiFramework}</span>}
+            {!item.enabled && <span className="badge badge-muted">已停用</span>}
+            {!item.valid && <span className="badge badge-danger">包已损坏</span>}
+            {duplicate && <span className="badge badge-danger">id 重复</span>}
+            {missingDeps.length > 0 && <span className="badge badge-warn">缺依赖</span>}
+            {sameName && <span className="badge badge-warn">状态冲突</span>}
+          </div>
+
+          <div className="ext-chips">
+            <code>{item.file}</code>
+            <span>{formatBytes(item.size)}</span>
+            {item.mainClass && <span>入口 {item.mainClass}</span>}
+            {item.dependsOn.length > 0 && <span>依赖 {item.dependsOn.join("、")}</span>}
+          </div>
+
+          {item.problem && <p className="ext-problem">{item.problem}</p>}
+          {duplicate && (
+            <p className="ext-problem">
+              同一个 id 还被 {duplicate.files.filter((file) => file !== item.file).join("、")} 声明。
+            </p>
+          )}
+          {missingDeps.length > 0 && (
+            <p className="ext-problem">缺少依赖 {missingDeps.join("、")}。</p>
+          )}
+          {sameName && <p className="ext-problem">同名文件同时存在于启用与停用目录。</p>}
+
+          <details className="ext-details">
+            <summary>描述符细节</summary>
+            <dl className="ext-detail-grid">
+              <dt>文件</dt>
+              <dd>
+                <code>{item.file}</code>
+              </dd>
+              <dt>扩展 id</dt>
+              <dd>
+                <code>{item.id}</code>
+              </dd>
+              <dt>入口类</dt>
+              <dd>{item.mainClass ?? "—"}</dd>
+              <dt>UI 框架</dt>
+              <dd>{item.uiFramework ?? "—"}</dd>
+              <dt>依赖</dt>
+              <dd>{item.dependsOn.length > 0 ? item.dependsOn.join("、") : "—"}</dd>
+            </dl>
+          </details>
+        </div>
+
+        <div className="ext-card-actions">
+          <button
+            className={`switch${item.enabled ? " on" : ""}`}
+            role="switch"
+            aria-checked={item.enabled}
+            aria-label={`${item.enabled ? "停用" : "启用"} ${item.id}`}
+            disabled={busy || !item.valid}
+            onClick={onToggle}
+          />
+          <button className="btn btn-sm btn-ghost" onClick={onRemove} disabled={busy}>
+            删除
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -537,52 +721,3 @@ function PlanWarnings({ view }: { view: ExtensionsView }) {
   );
 }
 
-function ExtensionRow({
-  item,
-  busy,
-  onToggle,
-  onRemove,
-}: {
-  item: PplExtension | RwmlExtension;
-  busy: boolean;
-  onToggle: () => void;
-  onRemove: () => void;
-}) {
-  const version = itemVersion(item);
-  const deps = itemDeps(item);
-  const description = "descriptor" in item ? item.descriptor.description : "";
-
-  return (
-    <div className={`ext-row${item.enabled ? "" : " off"}${item.valid ? "" : " broken"}`}>
-      <div className="ext-main">
-        <div className="ext-title">
-          <span>{displayName(item)}</span>
-          {version && <span className="badge">{version}</span>}
-          {!item.valid && <span className="badge badge-danger">包已损坏</span>}
-          {item.enabled ? null : <span className="badge badge-muted">已停用</span>}
-        </div>
-        <div className="ext-meta">
-          <code>{itemId(item)}</code>
-          <span>{formatBytes(item.size)}</span>
-          {deps.length > 0 && <span>依赖 {deps.join("、")}</span>}
-        </div>
-        {description && <p className="ext-desc">{description}</p>}
-        {item.problem && <p className="ext-problem">{item.problem}</p>}
-      </div>
-
-      <div className="ext-actions">
-        <button
-          className={`switch${item.enabled ? " on" : ""}`}
-          role="switch"
-          aria-checked={item.enabled}
-          aria-label={`${item.enabled ? "停用" : "启用"} ${displayName(item)}`}
-          disabled={busy || !item.valid}
-          onClick={onToggle}
-        />
-        <button className="btn btn-sm btn-ghost" onClick={onRemove} disabled={busy}>
-          删除
-        </button>
-      </div>
-    </div>
-  );
-}

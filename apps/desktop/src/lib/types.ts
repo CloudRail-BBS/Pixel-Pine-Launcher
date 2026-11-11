@@ -193,8 +193,26 @@ export interface RwmlExtension {
   problem: string | null;
 }
 
+export interface RwmlDuplicateId {
+  id: string;
+  files: string[];
+}
+
+export interface RwmlMissingDependency {
+  owner: string;
+  missing: string;
+}
+
+/** 兼容层的静态检查结果：我们不算加载顺序，那是对面加载器的事。 */
+export interface RwmlPlan {
+  duplicateIds: RwmlDuplicateId[];
+  missing: RwmlMissingDependency[];
+  sameName: string[];
+}
+
 export interface RwmlView {
   loader: RwmlLoader;
   dir: string;
   extensions: RwmlExtension[];
+  plan: RwmlPlan;
 }

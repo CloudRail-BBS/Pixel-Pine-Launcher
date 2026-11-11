@@ -309,6 +309,11 @@ zip -r ../org.example.zoom.pplx . -x '.*'`}</code></pre>
 
   <ul>
     <li>只做互操作：不加载、不注入、不包含对方任何代码。</li>
+    <li>
+      静态检查只有三条：同一 <code>id</code> 被多个 jar 声明、依赖在启用目录里找不到、
+      同名文件同时出现在启用与停用目录。
+    </li>
+    <li>不算加载顺序、不做版本求解——那是对面加载器的事，我们算出来也不算数。</li>
     <li>不替用户安装加载器：只检测 <code>game-lib.jar.original</code> 与 <code>rwml-runtime</code>。</li>
     <li>停用方式尚未实测：把它移进 <code>extensions/.disabled/</code> 是基于「按目录扫描」的推测。</li>
   </ul>

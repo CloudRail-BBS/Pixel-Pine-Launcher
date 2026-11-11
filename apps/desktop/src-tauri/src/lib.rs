@@ -673,6 +673,8 @@ struct RwmlView {
     loader: ppl_core::rwml::LoaderStatus,
     dir: String,
     extensions: Vec<ppl_core::rwml::RwmlExtension>,
+    /// 兼容层的静态检查：重复 id、缺依赖、同名文件
+    plan: ppl_core::rwml::RwmlPlan,
 }
 
 /// 扫描 RWML 扩展。
@@ -684,10 +686,12 @@ fn scan_rwml(root: String) -> Result<RwmlView, String> {
     let path = Path::new(&root);
     let extensions = ppl_core::rwml::scan(path).map_err(fail)?;
     let loader = ppl_core::rwml::loader_status(path);
+    let plan = ppl_core::rwml::analyze(&extensions);
     Ok(RwmlView {
         dir: loader.dir.clone(),
         loader,
         extensions,
+        plan,
     })
 }
 
