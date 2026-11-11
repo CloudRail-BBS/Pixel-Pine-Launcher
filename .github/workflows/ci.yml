@@ -49,6 +49,27 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # Android 源码也进 CI：本地没有 Android SDK 时，Kotlin 写错了只有打 tag
+  # 才会暴露，而那时候标签已经推出去了。这里只编译，不发产物。
+  android:
+    name: Android（编译）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: 编译 debug APK
+        working-directory: apps/android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
   # 只看「能不能在三个平台上编出来」。
   # 目的是让 cfg 写错（Windows 专属 API 漏了门）在打 tag 之前就炸，
   # 而不是等发版跑到一半发现 macOS 编译不过、tag 已经推上去了。

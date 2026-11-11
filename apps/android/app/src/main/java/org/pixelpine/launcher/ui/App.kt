@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Icon
@@ -24,9 +25,12 @@ import org.pixelpine.launcher.data.Prefs
 
 private data class Tab(val label: String, val icon: ImageVector)
 
+// 和桌面端对齐：市场 / 库 / 预设 / 设置。桌面端还有联机与扩展，
+// 但它们依赖 JVM 运行时或原生启动，Android 上不具备条件，不摆空按钮。
 private val tabs = listOf(
     Tab("市场", Icons.Outlined.Storefront),
     Tab("库", Icons.Outlined.Inventory2),
+    Tab("预设", Icons.Outlined.Layers),
     Tab("设置", Icons.Outlined.Settings),
 )
 
@@ -54,6 +58,7 @@ fun PplApp(prefs: Prefs) {
             when (index) {
                 0 -> MarketScreen(prefs)
                 1 -> LibraryScreen(prefs)
+                2 -> PresetsScreen(prefs)
                 else -> SettingsScreen(prefs)
             }
         }

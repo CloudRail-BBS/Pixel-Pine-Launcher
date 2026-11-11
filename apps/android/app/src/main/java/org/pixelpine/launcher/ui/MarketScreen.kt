@@ -1,9 +1,6 @@
 package org.pixelpine.launcher.ui
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
-import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,9 +44,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import org.pixelpine.launcher.data.Installer
 import org.pixelpine.launcher.data.MarketApi
 import org.pixelpine.launcher.data.MarketItem
 import org.pixelpine.launcher.data.MarketVersion
+import org.pixelpine.launcher.data.Mods
+import org.pixelpine.launcher.data.Net
 import org.pixelpine.launcher.data.Prefs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -227,7 +227,7 @@ private fun MarketCard(item: MarketItem, onOpen: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    item.size?.let { formatBytes(it) } ?: "—",
+                    item.size?.let { Net.formatBytes(it) } ?: "—",
                     fontSize = 11.5.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -243,8 +243,13 @@ private fun DetailDialog(
     context: Context,
     onClose: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     var versions by remember { mutableStateOf<List<MarketVersion>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    // 安装状态：正在装的版本、下载进度、结果文案
+    var installing by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf(-1) }
+    var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(item.id) {
         versions = runCatching { MarketApi.detail(prefs.server, item.id) }.getOrDefault(emptyList())
@@ -292,7 +297,7 @@ private fun DetailDialog(
                             Column(Modifier.weight(1f)) {
                                 Text("v${version.version}", fontSize = 14.sp)
                                 Text(
-                                    formatBytes(version.size),
+                                    Net.formatBytes(version.size),
                                     fontSize = 11.5.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -304,45 +309,75 @@ private fun DetailDialog(
                                         Toast.makeText(context, "这个版本没有下载地址", Toast.LENGTH_SHORT)
                                             .show()
                                     } else {
-                                        download(context, url, item.title)
+                                        // 直接装进游戏目录：桌面端也是点一下就进预设，
+                                        // 留个「下载到 Downloads」等于把最后一步丢给用户
+                                        val name = if (item.kind == "map") {
+                                            url.substringBefore('?').substringAfterLast('/')
+                                                .ifBlank { "map.zip" }
+                                        } else {
+                                            Installer.suggestedName(
+                                                item.slug.ifEmpty { item.id },
+                                                version.version,
+                                                url,
+                                            )
+                                        }
+                                        scope.launch {
+                                            installing = version.version
+                                            progress = 0
+                                            message = null
+                                            runCatching {
+                                                Installer.install(
+                                                    context = context,
+                                                    url = url,
+                                                    kind = item.kind,
+                                                    modsDir = prefs.modsDir,
+                                                    fileName = name,
+                                                ) { progress = it }
+                                            }.onSuccess {
+                                                message = "已安装：${it.name}"
+                                            }.onFailure {
+                                                message = it.message ?: "安装失败"
+                                            }
+                                            installing = null
+                                            progress = -1
+                                        }
                                     }
                                 },
-                                enabled = version.urls.isNotEmpty(),
-                            ) { Text("下载") }
+                                enabled = installing == null && version.urls.isNotEmpty(),
+                            ) {
+                                Text(if (installing == version.version) "安装中…" else "安装")
+                            }
+                        }
+                        if (installing == version.version) {
+                            Text(
+                                if (progress >= 0) "已下载 $progress%" else "下载中…",
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
                         }
                     }
+                }
+
+                message?.let {
+                    Text(
+                        it,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+
+                if (!Mods.canRead(prefs.modsDir)) {
+                    Text(
+                        "还没拿到文件访问权限，安装会失败。先去「设置 → 游戏目录」授权。",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
                 }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("关闭") } },
     )
-}
-
-private fun download(context: Context, url: String, title: String) {
-    runCatching {
-        val fileName = url.substringAfterLast('/').ifBlank { "package.rwmod" }
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle(title)
-            .setDescription("Pixel-Pine-Launcher")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-        (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
-        Toast.makeText(context, "已加入下载队列", Toast.LENGTH_SHORT).show()
-    }.onFailure { Toast.makeText(context, it.message ?: "下载失败", Toast.LENGTH_LONG).show() }
-}
-
-fun formatBytes(bytes: Long): String {
-    if (bytes <= 0) return "—"
-    val units = listOf("B", "KB", "MB", "GB")
-    var value = bytes.toDouble()
-    var unit = 0
-    while (value >= 1024 && unit < units.lastIndex) {
-        value /= 1024
-        unit += 1
-    }
-    return if (value >= 10 || unit == 0) {
-        "${value.toInt()} ${units[unit]}"
-    } else {
-        String.format("%.1f %s", value, units[unit])
-    }
 }

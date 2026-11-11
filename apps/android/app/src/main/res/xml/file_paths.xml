@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 能对外暴露的路径。只给自更新用的 updates/ 与临时缓存，
+     不要把整个外部存储挂上去。 -->
+<paths>
+    <external-files-path
+        name="updates"
+        path="updates" />
+    <cache-path
+        name="cache"
+        path="." />
+</paths>

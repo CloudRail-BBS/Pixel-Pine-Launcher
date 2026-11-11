@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,7 +39,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.pixelpine.launcher.data.LocalMod
+import org.pixelpine.launcher.data.ModConflict
 import org.pixelpine.launcher.data.Mods
+import org.pixelpine.launcher.data.Net
 import org.pixelpine.launcher.data.Prefs
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,9 +53,11 @@ fun LibraryScreen(prefs: Prefs) {
     val scope = rememberCoroutineScope()
 
     var mods by remember { mutableStateOf<List<LocalMod>>(emptyList()) }
+    var conflicts by remember { mutableStateOf<List<ModConflict>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var granted by remember { mutableStateOf(hasAccess(context)) }
+    var busy by remember { mutableStateOf<String?>(null) }
 
     suspend fun refresh() {
         loading = true
@@ -61,7 +67,12 @@ fun LibraryScreen(prefs: Prefs) {
             return
         }
         runCatching { withContext(Dispatchers.IO) { Mods.scan(prefs.modsDir) } }
-            .onSuccess { mods = it; error = null }
+            .onSuccess { list ->
+                mods = list
+                // 只对启用中的 Mod 判冲突：停用的一份不会参与加载
+                conflicts = Mods.conflicts(list.filter { it.enabled })
+                error = null
+            }
             .onFailure { error = it.message ?: "读取失败" }
         loading = false
     }
@@ -71,10 +82,10 @@ fun LibraryScreen(prefs: Prefs) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
         Text("库", fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "${mods.size} 个 Mod · ${prefs.modsDir}",
+            "${mods.count { it.enabled }} 个启用 · 共 ${mods.size} 个 · ${prefs.modsDir}",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = 2,
             modifier = Modifier.padding(top = 4.dp),
         )
 
@@ -100,39 +111,49 @@ fun LibraryScreen(prefs: Prefs) {
         }
 
         if (!granted) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("需要文件访问权限", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(
-                        "Android 11 起，读游戏目录需要在系统设置里允许「所有文件访问」。\n" +
-                            "默认目录：" + Prefs.defaultModsDir(),
-                        fontSize = 12.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
+            HintCard(
+                title = "需要文件访问权限",
+                body = "Android 11 起，读写游戏目录要在系统设置里允许「所有文件访问」。\n" +
+                    "默认目录：" + Prefs.defaultModsDir(),
+            )
             return@Column
         }
 
-        if (!loading && mods.isEmpty() && error == null) {
+        if (conflicts.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("这个目录里还没有 Mod", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        "去市场装一个，或把 .rwmod 放进 mods/units。路径可以在设置里改。",
-                        fontSize = 12.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
+                        "有 ${conflicts.size} 处单位冲突",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
                     )
+                    Text(
+                        "两个 Mod 含同名单位目录时，游戏只会保留后加载的那份。" +
+                            "停用其中一个，或接受覆盖。",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    conflicts.take(4).forEach { conflict ->
+                        Text(
+                            "· ${conflict.name} ↔ ${conflict.with}（${conflict.dirs.joinToString()}）",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
+        }
+
+        if (!loading && mods.isEmpty() && error == null) {
+            HintCard(
+                title = "这个目录里还没有 Mod",
+                body = "去市场装一个，或把 .rwmod 放进 mods/units。路径可以在设置里改。",
+            )
         }
 
         LazyColumn(
@@ -141,28 +162,84 @@ fun LibraryScreen(prefs: Prefs) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(mods, key = { it.path }) { mod ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(mod.name, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        Text(
-                            buildString {
-                                append(if (mod.isDirectory) "目录" else ".rwmod")
-                                append(" · ${mod.files} 个文件")
-                                append(" · ${formatBytes(mod.size)}")
-                                append(" · ${formatDate(mod.modified)}")
-                            },
-                            fontSize = 11.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
+                ModRow(
+                    mod = mod,
+                    busy = busy == mod.name,
+                    onToggle = { next ->
+                        busy = mod.name
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                Mods.setEnabled(prefs.modsDir, mod.name, next)
+                            }.onFailure { error = it.message ?: "移动失败" }
+                            busy = null
+                            refresh()
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModRow(mod: LocalMod, busy: Boolean, onToggle: (Boolean) -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    mod.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    buildString {
+                        append(if (mod.packaged) ".rwmod" else "目录")
+                        append(" · ${mod.unitCount} 个单位")
+                        append(" · ${Net.formatBytes(mod.size)}")
+                        append(" · ${formatDate(mod.modified)}")
+                    },
+                    fontSize = 11.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                if (!mod.enabled) {
+                    Text(
+                        "已停用 · 文件在 .disabled/ 里，随时可以开回来",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
                 }
             }
+            Switch(
+                checked = mod.enabled,
+                enabled = !busy,
+                onCheckedChange = onToggle,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HintCard(title: String, body: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(
+                body,
+                fontSize = 12.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
