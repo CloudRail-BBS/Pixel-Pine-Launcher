@@ -1,6 +1,7 @@
 //! 路由表。
 
 pub mod admin;
+pub mod admin_console;
 pub mod announcements;
 pub mod auth;
 pub mod dist;
@@ -9,8 +10,8 @@ pub mod packages;
 pub mod upload;
 
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{get, post};
 use axum::response::IntoResponse;
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -67,6 +68,25 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/packages/{id}/submit", post(upload::submit))
         // 审核侧
         .route("/v1/admin/login", post(admin::login))
+        // 管理控制台：概览、资源管理、审计、游戏清单
+        .route("/v1/admin/stats", get(admin_console::stats))
+        .route("/v1/admin/audit", get(admin_console::audit_list))
+        .route("/v1/admin/packages", get(admin_console::packages))
+        .route(
+            "/v1/admin/packages/{id}",
+            get(admin_console::package_detail),
+        )
+        .route(
+            "/v1/admin/packages/{id}",
+            delete(admin_console::delete_package),
+        )
+        .route(
+            "/v1/admin/packages/{id}/restore",
+            post(admin_console::restore),
+        )
+        .route("/v1/admin/game", get(dist::admin_game_get))
+        .route("/v1/admin/game", put(dist::admin_game_put))
+        .route("/v1/admin/game/upload", post(dist::admin_game_upload))
         .route("/v1/admin/queue", get(admin::queue))
         .route("/v1/admin/packages/{id}/approve", post(admin::approve))
         .route("/v1/admin/packages/{id}/reject", post(admin::reject))

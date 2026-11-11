@@ -3,7 +3,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Login } from "./components/Login";
 import * as api from "./lib/api";
 import type { AdminUser, Announcement, QueueItem, ReportItem } from "./lib/api";
+import { GameDownloads } from "./pages/GameDownloads";
+import { Launcher } from "./pages/Launcher";
+import { Overview } from "./pages/Overview";
+import { Packages } from "./pages/Packages";
 import { applyTheme, readThemeMode } from "./lib/theme";
+
+type PageId = "overview" | "queue" | "packages" | "reports" | "announce" | "game" | "launcher";
+
+const NAV: { id: PageId; label: string }[] = [
+  { id: "overview", label: "概览" },
+  { id: "queue", label: "审核队列" },
+  { id: "packages", label: "资源管理" },
+  { id: "reports", label: "举报" },
+  { id: "announce", label: "公告" },
+  { id: "game", label: "游戏下载" },
+  { id: "launcher", label: "启动器更新" },
+];
+
+/** 前三个视图是「左右分栏」的列表 + 详情，其余是整页内容。 */
+const SPLIT_PAGES: PageId[] = ["queue", "reports", "announce"];
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   pending: { text: "待审核", cls: "badge badge-warn" },
@@ -12,6 +31,13 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   rejected: { text: "已驳回", cls: "badge badge-danger" },
   takendown: { text: "已下架", cls: "badge badge-danger" },
 };
+
+/** 支持 ?page=packages 直达某个视图，演示和排查时省得手点。 */
+function initialPage(): PageId {
+  if (typeof window === "undefined") return "overview";
+  const value = new URLSearchParams(window.location.search).get("page");
+  return NAV.some((item) => item.id === value) ? (value as PageId) : "overview";
+}
 
 export default function App() {
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -23,7 +49,7 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<QueueItem | null>(null);
-  const [tab, setTab] = useState<"queue" | "reports" | "announce">("queue");
+  const [tab, setTab] = useState<PageId>(initialPage);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [reportId, setReportId] = useState<number | null>(null);
   const [takedownTarget, setTakedownTarget] = useState<ReportItem | null>(null);
@@ -72,10 +98,11 @@ export default function App() {
         const result = await api.reports();
         setReports(result.items);
         setReportId((current) => current ?? result.items[0]?.id ?? null);
-      } else {
+      } else if (tab === "announce") {
         const result = await api.listAnnouncements();
         setAnnouncements(result.items);
       }
+      // 其余页面的数据由各自组件自己拉，这里不做无用请求
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -219,15 +246,17 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <img src="/logo.png" alt="" />
-          PPL 审核后台
+          PPL 管理后台
         </div>
         <div className="topbar-spacer" />
         <div className="user-chip">
           <span>{user.email}</span>
         </div>
-        <button className="btn" onClick={() => void load()} disabled={loading}>
-          {loading ? "刷新中…" : "刷新"}
-        </button>
+        {SPLIT_PAGES.includes(tab) && (
+          <button className="btn" onClick={() => void load()} disabled={loading}>
+            {loading ? "刷新中…" : "刷新"}
+          </button>
+        )}
         <button
           className="btn"
           onClick={() => {
@@ -240,35 +269,30 @@ export default function App() {
         </button>
       </header>
 
-      {/* 用三张卡代替页签：既是切换入口，也是「现在有多少活」的读数 */}
-      <nav className="stat-strip" aria-label="视图">
-        <button
-          className={`stat${tab === "queue" ? " active" : ""}`}
-          aria-current={tab === "queue" ? "page" : undefined}
-          onClick={() => setTab("queue")}
-        >
-          <span className="stat-value">{items.length}</span>
-          <span className="stat-label">待审资源</span>
-        </button>
-        <button
-          className={`stat${tab === "reports" ? " active" : ""}`}
-          aria-current={tab === "reports" ? "page" : undefined}
-          onClick={() => setTab("reports")}
-        >
-          <span className="stat-value">{reports.length}</span>
-          <span className="stat-label">待处理举报</span>
-        </button>
-        <button
-          className={`stat${tab === "announce" ? " active" : ""}`}
-          aria-current={tab === "announce" ? "page" : undefined}
-          onClick={() => setTab("announce")}
-        >
-          <span className="stat-value">{announcements.length}</span>
-          <span className="stat-label">已发布公告</span>
-        </button>
+      {/* 七个视图：前三个带计数，其余是整页工具 */}
+      <nav className="tabs" aria-label="视图">
+        {NAV.map((item) => (
+          <button
+            key={item.id}
+            className={`tab${tab === item.id ? " active" : ""}`}
+            aria-current={tab === item.id ? "page" : undefined}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+            {item.id === "queue" && items.length > 0 && (
+              <span className="tab-count">{items.length}</span>
+            )}
+            {item.id === "reports" && reports.length > 0 && (
+              <span className="tab-count">{reports.length}</span>
+            )}
+            {item.id === "announce" && announcements.length > 0 && (
+              <span className="tab-count">{announcements.length}</span>
+            )}
+          </button>
+        ))}
       </nav>
 
-      <div className="body">
+      <div className={`body${SPLIT_PAGES.includes(tab) ? "" : " body-wide"}`}>
         <aside className="queue">
           <div className="queue-head">
             <span className="queue-title">
@@ -382,7 +406,12 @@ export default function App() {
             </div>
           )}
 
-          {tab === "queue" ? (
+          {tab === "overview" && <Overview onNavigate={setTab} onError={setError} />}
+          {tab === "packages" && <Packages onError={setError} onToast={setNotice} />}
+          {tab === "game" && <GameDownloads onError={setError} onToast={setNotice} />}
+          {tab === "launcher" && <Launcher onError={setError} onToast={setNotice} />}
+
+          {SPLIT_PAGES.includes(tab) && (tab === "queue" ? (
             !selected ? (
               <div className="detail-empty">
                 左边选一条资源
@@ -424,7 +453,7 @@ export default function App() {
               busy={busy}
               onPublish={(input) => void publishAnnouncement(input)}
             />
-          )}
+          ))}
         </main>
       </div>
 

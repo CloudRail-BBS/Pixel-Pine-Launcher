@@ -257,6 +257,49 @@ POST /v1/admin/packages/{id}/reject     { "note": "必须写原因" }
 通过时：该资源所有 `pending` 版本转 `approved`，资源 `published`。
 驳回时：版本转 `rejected`，原因写入 `review_note`。
 
+### 管理控制台
+
+后台的运营视图，全部要求 `role = admin`：
+
+```
+GET    /v1/admin/stats                 # 概览读数 + 最近 10 条审计
+GET    /v1/admin/audit?limit=60        # 审计流水
+GET    /v1/admin/packages              # 全量资源（状态/类型/关键词/分页）
+GET    /v1/admin/packages/{id}         # 详情 + 全部版本（含未过审）
+POST   /v1/admin/packages/{id}/restore # 恢复上架（下架/驳回 → 已上架，版本一并还原）
+DELETE /v1/admin/packages/{id}         # 彻底删除（含磁盘文件，不可恢复）
+```
+
+`GET /v1/admin/packages` 的查询参数：`status` / `kind` / `q` / `page` / `size`，
+返回 `{ items, page, pageSize, total }`。
+
+**下架和删除是两件事**：下架只是状态转 `takendown`，可恢复；删除会连
+`storage/<slug>/` 里的包一起清掉，之后无法找回。
+
+### 游戏本体清单（后台）
+
+```
+GET  /v1/admin/game          # 读清单；文件不存在时返回 {"schema":1,"versions":[]}
+PUT  /v1/admin/game          # 覆盖写入（先校验再落盘，原子替换）
+POST /v1/admin/game/upload   # multipart 上传 zip，返回 url / sha256 / size
+```
+
+`PUT` 会校验：`versions` 是数组、`platform` 属于 windows/macos/linux/android、
+下载地址必须 `http(s)://`、`sha256` 要么留空要么 64 位十六进制、同平台同版本不重复。
+校验失败返回 400 并指出第几条——写进去一份客户端读不懂的清单，界面只会显示
+「没有可下载版本」，很难反查。
+
+上传接口落盘到 `<storage>/game/<name>.zip`，通过 `/files/game/…` 对外；
+返回的 `sha256` 直接填进清单条目，省掉手工算哈希。
+
+### 启动器更新清单
+
+```
+POST /v1/admin/launcher   # 推送 latest.json（校验 version / platforms 后原子写入）
+```
+
+发版流水线在创建 Release 后自动调用它，正常情况下不需要手工操作。
+
 ### 公告
 
 ```

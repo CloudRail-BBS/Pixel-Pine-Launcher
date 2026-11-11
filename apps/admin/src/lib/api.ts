@@ -2,7 +2,13 @@
  *
  * 与服务端唯一契约见 docs/API.md。错误消息已经是中文短句，直接展示即可。 */
 
+import { demoResponse } from "./demo";
+
 const BASE_KEY = "ppl.admin.base";
+
+/** `?demo=1` 时走演示数据：不用部署服务端也能看界面，写操作一律失败。 */
+export const DEMO_MODE =
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
 const TOKEN_KEY = "ppl.admin.token";
 
 export const OFFICIAL_BASE = "https://ziyuan.pixelpine.org";
@@ -12,6 +18,87 @@ export interface AdminUser {
   email: string;
   name: string;
   role: string;
+}
+
+/** 概览读数。 */
+export interface AdminStats {
+  packages: Record<string, number>;
+  pendingVersions: number;
+  openReports: number;
+  announcements: number;
+  downloads: number;
+  users: number;
+  recent: AuditEntry[];
+}
+
+export interface AuditEntry {
+  action: string;
+  target: string;
+  payload: unknown;
+  created: string;
+  actor: string | null;
+}
+
+/** 资源管理列表里的一行。 */
+export interface AdminPackage {
+  id: string;
+  slug: string;
+  kind: string;
+  title: string;
+  summary: string;
+  author: string;
+  status: string;
+  reviewNote: string;
+  updated: string;
+  version: string | null;
+  size: number | null;
+  downloads: number;
+  versionCount: number;
+}
+
+export interface AdminVersion {
+  version: string;
+  status: string;
+  size: number;
+  downloads: number;
+  sha256: string;
+  fileName: string;
+  urls: string[];
+  changelog: string;
+  created: string;
+}
+
+export interface AdminPackageDetail extends AdminPackage {
+  cover: string | null;
+  owner: string | null;
+  created: string;
+  versions: AdminVersion[];
+}
+
+/** 游戏本体清单里的一个版本，字段名与客户端 `gamedl::GameVersion` 一致。 */
+export interface GameEntry {
+  version: string;
+  channel: string;
+  platform: string;
+  size: number;
+  sha256: string;
+  urls: string[];
+  archive: string;
+  entry: string;
+  notes: string;
+}
+
+export interface GameManifest {
+  schema: number;
+  generated?: string;
+  versions: GameEntry[];
+}
+
+export interface GameUpload {
+  fileName: string;
+  url: string;
+  size: number;
+  sha256: string;
 }
 
 export interface QueueItem {
@@ -81,6 +168,8 @@ function normalizeBase(input: string): string {
 }
 
 export function getToken(): string | null {
+  // 演示模式直接给一个假 token，让启动时的 me() 能走通
+  if (DEMO_MODE) return "demo";
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -111,6 +200,17 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (DEMO_MODE) {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    try {
+      const data = demoResponse(path, (init.method ?? "GET").toUpperCase());
+      if (data === undefined) throw new Error(`演示模式没有准备 ${path} 的数据`);
+      return data as T;
+    } catch (cause) {
+      throw new ApiError(0, cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
   const headers = new Headers(init.headers);
   headers.set("accept", "application/json");
   const token = getToken();
@@ -182,6 +282,128 @@ export function login(
 
 export function me(): Promise<{ id: string; email: string; role: string }> {
   return request("/v1/me");
+}
+
+/* ---------- 管理控制台 ---------- */
+
+export function stats(): Promise<AdminStats> {
+  return request("/v1/admin/stats");
+}
+
+export function auditLog(limit = 60): Promise<{ items: AuditEntry[] }> {
+  return request(`/v1/admin/audit?limit=${limit}`);
+}
+
+export function adminPackages(params: {
+  status?: string;
+  kind?: string;
+  q?: string;
+  page?: number;
+  size?: number;
+}): Promise<{ items: AdminPackage[]; page: number; pageSize: number; total: number }> {
+  const search = new URLSearchParams();
+  if (params.status) search.set("status", params.status);
+  if (params.kind) search.set("kind", params.kind);
+  if (params.q) search.set("q", params.q);
+  if (params.page) search.set("page", String(params.page));
+  if (params.size) search.set("size", String(params.size));
+  const query = search.toString();
+  return request(`/v1/admin/packages${query ? `?${query}` : ""}`);
+}
+
+export function adminPackageDetail(id: string): Promise<AdminPackageDetail> {
+  return request(`/v1/admin/packages/${id}`);
+}
+
+export function restorePackage(id: string): Promise<{ ok: boolean }> {
+  return request(`/v1/admin/packages/${id}/restore`, { method: "POST" });
+}
+
+export function deletePackage(id: string): Promise<{ ok: boolean }> {
+  return request(`/v1/admin/packages/${id}`, { method: "DELETE" });
+}
+
+/** 游戏本体清单（后台视角：文件不存在时返回空骨架，不是 204）。 */
+export function gameManifest(): Promise<GameManifest> {
+  return request("/v1/admin/game");
+}
+
+export function saveGameManifest(
+  manifest: GameManifest,
+): Promise<{ ok: boolean; versions: number }> {
+  return request("/v1/admin/game", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(manifest),
+  });
+}
+
+/**
+ * 上传游戏本体压缩包。
+ *
+ * 用 XHR 而不是 fetch：150MB 的包没有进度条，等于让用户盯一个不动的按钮。
+ * 返回的 sha256 / size 直接填进清单条目，省掉手工算哈希——那是最容易抄错的字段。
+ */
+export function uploadGameArchive(
+  file: File,
+  version: string,
+  onProgress?: (percent: number) => void,
+): Promise<GameUpload> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (version.trim()) form.append("version", version.trim());
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${apiBase()}/v1/admin/game/upload`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader("authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("accept", "application/json");
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        body = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body) {
+        onProgress?.(100);
+        resolve(body as GameUpload);
+        return;
+      }
+      const message =
+        body && typeof body === "object" && "error" in body
+          ? String((body as { error: unknown }).error)
+          : `上传失败（${xhr.status}）`;
+      reject(new ApiError(xhr.status, message));
+    };
+
+    xhr.onerror = () => reject(new ApiError(0, "上传中断，检查网络后重试"));
+    xhr.send(form);
+  });
+}
+
+/** 客户端更新清单（公开接口，读的就是客户端拿到的同一份文件）。 */
+export function launcherManifest(): Promise<unknown> {
+  return request("/v1/launcher/latest.json");
+}
+
+/** 推送更新清单；服务端校验 version / platforms 后原子写入。 */
+export function pushLauncherManifest(
+  manifest: unknown,
+): Promise<{ ok: boolean; version: string }> {
+  return request("/v1/admin/launcher", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(manifest),
+  });
 }
 
 export function queue(): Promise<{ items: QueueItem[] }> {

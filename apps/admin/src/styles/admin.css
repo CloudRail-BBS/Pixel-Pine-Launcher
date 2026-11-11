@@ -721,3 +721,517 @@ textarea {
 .stat.active .stat-label {
   color: var(--text-2);
 }
+
+/* ---------- 管理后台：页签与整页内容 ---------- */
+
+/* 七个视图用横向页签而不是卡片：卡片适合 3 个，7 个会变成一串等宽方块，
+   读数反而不好扫。计数做成小徽标贴在标签后面。 */
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  flex: none;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--text-3);
+  border-bottom: 2px solid transparent;
+  transition:
+    color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--text-2);
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.tab-count {
+  min-width: 18px;
+  padding: 0 5px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 整页模式下把左侧列表让出来，只留内容区 */
+.body-wide {
+  grid-template-columns: 1fr;
+}
+
+.body-wide > .queue {
+  display: none;
+}
+
+.body-wide > .detail {
+  padding: 26px 28px 40px;
+  overflow-y: auto;
+}
+
+/* ---------- 整页通用骨架 ---------- */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1180px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.page-desc {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-3);
+  max-width: 62ch;
+}
+
+.page-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-3);
+}
+
+.page-hint code {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+/* ---------- 读数卡 ---------- */
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.cards-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cards-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  text-align: left;
+  transition:
+    border-color 180ms var(--ease-out),
+    background 180ms var(--ease-out);
+}
+
+.metric:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metric-num {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.metric-hint {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+/* ---------- 面板 ---------- */
+
+.panel {
+  padding: 0 16px 14px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 2px 11px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.panel-hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.panel-empty {
+  padding: 26px 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* ---------- 审计流水 ---------- */
+
+.log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1px;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 96px 108px 1fr 160px;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 2px;
+  font-size: 12.5px;
+  border-top: 1px solid var(--line);
+}
+
+.log-row:first-child {
+  border-top: 0;
+}
+
+.log-time,
+.log-actor {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-action {
+  color: var(--text-2);
+}
+
+.log-target {
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-actor {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 工具条与表格 ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* .field 默认 width:100%，在 flex 工具条里会把每个控件撑成一整行 */
+.toolbar > .field {
+  width: auto;
+}
+
+.toolbar-search {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.toolbar-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+select.field {
+  height: 34px;
+  padding: 0 10px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
+    linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 14px,
+    calc(100% - 9px) 14px;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-row {
+  cursor: pointer;
+  transition: background 140ms var(--ease-out);
+}
+
+.table-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.table-empty {
+  text-align: center !important;
+  padding: 30px 0 !important;
+  color: var(--text-3);
+}
+
+.cell-title {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cell-sub {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.cell-mono {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.cell-break {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.pager-info {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 弹窗里的表单 ---------- */
+
+.modal-wide {
+  width: min(760px, calc(100vw - 40px));
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-field .field {
+  width: 100%;
+}
+
+/* ---------- 上传 ---------- */
+
+.upload-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* 同样要压掉 .field 的 width:100%，否则两个输入各占一行 */
+.upload-row > .field {
+  width: auto;
+  flex: 1 1 220px;
+}
+
+.upload-row > input[type="file"] {
+  flex: 1 1 240px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* 整页里的多行输入：默认 textarea 只有 20 列宽，看着像坏了 */
+.page textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.75;
+  resize: vertical;
+}
+
+.page textarea:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+
+.upload-bar {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.upload-bar-fill {
+  height: 100%;
+  background: var(--accent-soft);
+  border-right: 1px solid var(--accent-line);
+  transition: width 200ms var(--ease-out);
+}
+
+.upload-bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-result {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: 11px;
+  background: var(--accent-soft);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.upload-result .btn {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .cards-4,
+  .cards-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .log-row {
+    grid-template-columns: 80px 92px 1fr;
+  }
+
+  .log-actor {
+    display: none;
+  }
+}
