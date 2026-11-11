@@ -20,8 +20,10 @@
 //! 这样拆的原因是：顺序算错会让游戏直接崩，必须有单元测试兜住；
 //! 而字节码改写没法在启动器进程里做。
 //!
-//! 运行时尚未实现，设计见 `docs/EXTENSIONS.md`。
+//! 启动游戏前会把算好的清单写到 `ppl/runtime/plan.json`（[`write_runtime_plan`]），
+//! 由运行时读取；真正改写类的注入部分仍未实现，见 `docs/EXTENSIONS.md`。
 
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -436,6 +438,162 @@ pub fn build_plan(extensions: &[Extension]) -> LoadPlan {
     plan
 }
 
+/// 运行时清单所在目录。
+pub const RUNTIME_DIR: &str = "runtime";
+/// 运行时清单文件名。
+pub const RUNTIME_PLAN: &str = "plan.json";
+
+/// 交给运行时的一条加载指令。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEntry {
+    pub id: String,
+    /// 相对 `<游戏>/ppl/extensions/` 的文件名。
+    pub file: String,
+    pub main_class: Option<String>,
+    pub mixins: Vec<String>,
+    pub api_version: u32,
+}
+
+/// 被跳过的扩展，以及跳过原因。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedEntry {
+    pub id: String,
+    /// `incompatible-api` / `dependency-cycle` / `missing-dependency:<id>` / `invalid-package`
+    pub reason: String,
+}
+
+/// 写给运行时的清单。
+///
+/// 这是启动器与运行时之间**唯一**的交接面：顺序、入口类、mixin 都在这里，
+/// 运行时不需要再读描述符，也就不必把解析逻辑实现两遍。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimePlan {
+    pub schema: u32,
+    pub api_version: u32,
+    pub entries: Vec<RuntimeEntry>,
+    pub skipped: Vec<SkippedEntry>,
+}
+
+impl RuntimePlan {
+    /// 从已装扩展生成；顺序来自 [`build_plan`]，但**依赖不可用的会被剔除**。
+    ///
+    /// 这一点和 `LoadPlan` 不同：`LoadPlan` 只负责记录「谁缺依赖」，仍然把它排进顺序里
+    /// （界面要能展示这个扩展）；运行时清单不能这么干——把缺依赖的扩展交给 agent，
+    /// 它加载到一半就会因为找不到类崩掉，不如明确跳过。
+    pub fn build(extensions: &[Extension]) -> Self {
+        use std::collections::BTreeSet;
+
+        let plan = build_plan(extensions);
+        let by_id: HashMap<&str, &Extension> =
+            extensions.iter().map(|item| (item.id(), item)).collect();
+
+        let mut keep: BTreeSet<&str> = plan.order.iter().map(String::as_str).collect();
+
+        // 依赖不在集合里的逐个剔除。要循环到稳定：
+        // 被剔除者的依赖者也要跟着走，否则会留下二级悬空依赖。
+        loop {
+            let mut changed = false;
+            for item in extensions {
+                if !item.enabled || !item.valid {
+                    continue;
+                }
+                let id = item.id();
+                if !keep.contains(id) {
+                    continue;
+                }
+                if item
+                    .descriptor
+                    .depends_on
+                    .iter()
+                    .any(|dep| !keep.contains(dep.as_str()))
+                {
+                    keep.remove(id);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        let entries = plan
+            .order
+            .iter()
+            .filter(|id| keep.contains(id.as_str()))
+            .filter_map(|id| by_id.get(id.as_str()))
+            .map(|item| RuntimeEntry {
+                id: item.id().to_string(),
+                file: item.file.clone(),
+                main_class: item.descriptor.main_class.clone(),
+                mixins: item.descriptor.mixins.clone(),
+                api_version: item.descriptor.api_version,
+            })
+            .collect();
+
+        let mut skipped = Vec::new();
+        for item in extensions {
+            if !item.valid {
+                skipped.push(SkippedEntry {
+                    id: item.file.clone(),
+                    reason: "invalid-package".to_string(),
+                });
+                continue;
+            }
+            if !item.enabled || keep.contains(item.id()) {
+                continue;
+            }
+            let id = item.id().to_string();
+            let reason = if plan.incompatible.contains(&id) {
+                "incompatible-api"
+            } else if plan
+                .cycles
+                .iter()
+                .any(|group| group.iter().any(|member| member == &id))
+            {
+                "dependency-cycle"
+            } else {
+                "dependency-unavailable"
+            };
+            skipped.push(SkippedEntry {
+                id,
+                reason: reason.to_string(),
+            });
+        }
+        skipped.sort_by(|left, right| left.id.cmp(&right.id));
+        skipped.dedup_by(|left, right| left.id == right.id && left.reason == right.reason);
+
+        Self {
+            schema: 1,
+            api_version: API_VERSION,
+            entries,
+            skipped,
+        }
+    }
+}
+
+/// 扫描 → 算顺序 → 写 `<游戏>/ppl/runtime/plan.json`，返回清单路径。
+///
+/// 启动游戏前调用。写失败不该拦住玩家进游戏，调用方可以选择忽略错误。
+pub fn write_runtime_plan(root: &Path) -> crate::Result<PathBuf> {
+    let extensions = scan_extensions(root)?;
+    let plan = RuntimePlan::build(&extensions);
+
+    let dir = root.join(PPL_DIR).join(RUNTIME_DIR);
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join(RUNTIME_PLAN);
+
+    // 先写临时文件再 rename：运行时可能正好在读，
+    // 半截 JSON 会让它把整份清单当成损坏。
+    let temp = dir.join(format!("{RUNTIME_PLAN}.tmp"));
+    std::fs::write(&temp, serde_json::to_vec_pretty(&plan)?)?;
+    std::fs::rename(&temp, &path)?;
+
+    Ok(path)
+}
+
 /// 导入一个扩展包。
 pub fn import_extension(root: &Path, package: &Path) -> crate::Result<Extension> {
     if !package.is_file() {
@@ -705,5 +863,68 @@ mod tests {
         let error = import_extension(&game, &package).expect_err("应拒绝");
         assert!(matches!(error, crate::Error::InvalidPackage(_)));
         assert!(!extensions_dir(&game).join("plain.pplx").exists());
+    }
+
+    #[test]
+    fn runtime_plan_keeps_load_order() {
+        let list = vec![ext("app", &["lib"], &[]), ext("lib", &[], &[])];
+
+        let plan = RuntimePlan::build(&list);
+        assert_eq!(plan.schema, 1);
+        let ids: Vec<&str> = plan.entries.iter().map(|entry| entry.id.as_str()).collect();
+        assert_eq!(ids, vec!["lib", "app"]);
+        assert_eq!(plan.entries[0].file, "lib.pplx");
+        assert!(plan.skipped.is_empty());
+    }
+
+    #[test]
+    fn runtime_plan_records_skip_reasons() {
+        let mut broken = ext("bad", &[], &[]);
+        broken.valid = false;
+
+        let list = vec![
+            ext("a", &["b"], &[]),
+            ext("b", &["a"], &[]),
+            ext("needs", &["ghost"], &[]),
+            broken,
+        ];
+
+        let plan = RuntimePlan::build(&list);
+        assert!(plan.entries.is_empty());
+
+        let reasons: Vec<&str> = plan
+            .skipped
+            .iter()
+            .map(|item| item.reason.as_str())
+            .collect();
+        assert!(reasons.contains(&"dependency-cycle"));
+        assert!(reasons.contains(&"invalid-package"));
+        assert!(reasons.contains(&"dependency-unavailable"));
+    }
+
+    #[test]
+    fn writes_runtime_plan_to_disk() {
+        let base = temp("runtime-plan");
+        let game = base.join("game");
+        std::fs::create_dir_all(extensions_dir(&game)).expect("建扩展目录");
+
+        make_package(
+            &extensions_dir(&game).join("org.demo.pplx"),
+            Some(r#"{"schema":1,"id":"org.demo","name":"Demo","mainClass":"org.demo.Main"}"#),
+        );
+
+        let path = write_runtime_plan(&game).expect("写清单");
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some(RUNTIME_PLAN)
+        );
+
+        let text = std::fs::read_to_string(&path).expect("读清单");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("应是合法 JSON");
+        assert_eq!(value["entries"][0]["id"], "org.demo");
+        assert_eq!(value["entries"][0]["mainClass"], "org.demo.Main");
+
+        // 先写 .tmp 再 rename，正常结束后不该留临时文件
+        assert!(!path.with_extension("json.tmp").exists());
     }
 }

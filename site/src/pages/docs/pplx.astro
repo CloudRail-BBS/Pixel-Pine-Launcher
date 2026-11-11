@@ -258,8 +258,27 @@ zip -r ../org.example.zoom.pplx . -x '.*'`}</code></pre>
   <h2 id="runtime">运行时现状</h2>
 
   <p>
-    静态部分只负责「装好、排好、告诉运行时」。真正改写游戏类的是一个 JVM agent，
-    <strong>目前没有任何代码</strong>，不要把它当成已实现：
+    静态部分负责「装好、排好、把清单交给运行时」。启动游戏前，启动器会把顺序写到
+    <code>&lt;游戏&gt;/ppl/runtime/plan.json</code>：条目按加载顺序排列，且<strong>已剔除依赖不可用的扩展</strong>
+    ——界面要展示「谁缺依赖」，交给运行时就必须剔除，否则 agent 加载到一半找不到类会直接崩。
+  </p>
+
+  <pre class="doc-pre"><code>{`{
+  "schema": 1,
+  "apiVersion": 1,
+  "entries": [
+    { "id": "org.ppl.core", "file": "org.ppl.core.pplx", "mainClass": "…", "mixins": [], "apiVersion": 1 }
+  ],
+  "skipped": [{ "id": "org.example.audio", "reason": "dependency-unavailable" }]
+}`}</code></pre>
+
+  <p>
+    写入用「先写 <code>.tmp</code> 再 rename」，避免运行时读到半截 JSON；
+    写失败不阻断启动——没有扩展的玩家不该因为一个目录权限进不了游戏。
+  </p>
+
+  <p>
+    真正改写游戏类的是一个 JVM agent，<strong>这部分仍然没有任何代码</strong>，不要当成已实现：
   </p>
 
   <pre class="doc-pre"><code>{`启动器                          运行时（agent）

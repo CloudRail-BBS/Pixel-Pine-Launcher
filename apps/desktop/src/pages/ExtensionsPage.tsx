@@ -217,6 +217,11 @@ export function ExtensionsPage({
 
       {root && format === "ppl" && ppl && (
         <>
+          <div className="notice" style={{ marginBottom: 14 }}>
+            启动游戏时会把加载顺序写到 <code>ppl/runtime/plan.json</code>；
+            注入（JVM agent）仍未实现，游戏内暂时不会应用它们。
+          </div>
+
           <div className="ext-metrics">
             <div className="ext-metric">
               <span className="ext-metric-num">{rows.length}</span>

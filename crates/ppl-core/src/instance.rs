@@ -169,11 +169,19 @@ impl Instance {
     /// 启动游戏。
     ///
     /// 工作目录必须设为游戏根目录，否则 Mod 的相对路径会解析到别处。
+    /// 启动前会把扩展清单写到 `ppl/runtime/plan.json`，供运行时读取；
+    /// 写清单失败不拦启动——没有扩展的玩家不该因为一个目录权限进不了游戏。
     pub fn launch(&self) -> Result<u32> {
         let probe = Self::probe(&self.root)?;
         let exe = probe
             .exe
             .ok_or_else(|| Error::NotPlayable(self.root.clone()))?;
+
+        if let Err(error) = crate::extensions::write_runtime_plan(&self.root) {
+            // 这里没有 logger，用 stderr 留痕：真出问题时至少能从启动日志看到
+            eprintln!("[ppl] 写入扩展清单失败，继续启动：{error}");
+        }
+
         let child = Command::new(&exe).current_dir(&self.root).spawn()?;
         Ok(child.id())
     }

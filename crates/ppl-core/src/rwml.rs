@@ -46,7 +46,8 @@ pub struct LoaderStatus {
 pub struct RwmlExtension {
     pub id: String,
     /// 对方描述符没有 name 字段，展示名就用 id。
-    pub name: String,    pub file: String,
+    pub name: String,
+    pub file: String,
     pub main_class: Option<String>,
     pub ui_framework: Option<String>,
     pub depends_on: Vec<String>,
