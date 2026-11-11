@@ -33,7 +33,7 @@ export const SITE = {
   license: 'https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/blob/main/LICENSE',
   market: 'https://ziyuan.pixelpine.org',
   /** 展示用版本号；发版时同步一次即可，下载按钮始终指向 Release 页。 */
-  version: '0.1.3',
+  version: '0.1.4',
 } as const;
 
 /** 三个平台的下载卡。链接统一落到 Releases，避免预发布版本被写死。 */
