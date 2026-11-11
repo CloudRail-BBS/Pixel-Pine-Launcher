@@ -29,6 +29,10 @@ import type { ExtensionsView, PplExtension, RwmlExtension, RwmlView } from "../l
  * - `rwml`：`<游戏>/extensions`，`.jar` + `META-INF/extension.properties`（兼容层）
  *
  * 两套目录互不重叠，所以可以同时存在，不会互相覆盖。
+ *
+ * 信息层级按「装了什么 → 有没有问题 → 细节」排：读数在最上面，
+ * 问题次之（只在有问题时出现），列表最后；每张卡片的描述符细节
+ * 收进 <details>，不占默认视野。
  */
 export function ExtensionsPage({
   root,
@@ -130,6 +134,12 @@ export function ExtensionsPage({
   const enabledCount = rows.filter((item) => item.enabled).length;
   const dir = format === "ppl" ? ppl?.dir : rwml?.dir;
 
+  const issues = ppl
+    ? ppl.plan.missing.length + ppl.plan.cycles.length + ppl.plan.incompatible.length
+    : 0;
+  const broken = rows.filter((item) => !item.valid).length;
+  const attention = issues + broken;
+
   return (
     <>
       <header className="page-head">
@@ -137,7 +147,9 @@ export function ExtensionsPage({
           <h1 className="page-title">扩展</h1>
           <p className="page-desc">
             {root
-              ? `${rows.length} 个已安装 · ${enabledCount} 个已启用`
+              ? `${rows.length} 个已安装 · ${enabledCount} 个已启用${
+                  attention > 0 ? ` · ${attention} 项需要处理` : ""
+                }`
               : "先指定游戏目录，才能管理扩展"}
           </p>
         </div>
@@ -196,60 +208,108 @@ export function ExtensionsPage({
 
       {root && format === "ppl" && ppl && (
         <>
-          <div className="notice" style={{ marginBottom: 14 }}>
-            扩展的运行时还没接入：这里可以安装、启停和查看加载顺序，
-            但游戏进程暂时不会应用它们。
+          <div className="ext-metrics">
+            <div className="ext-metric">
+              <span className="ext-metric-num">{rows.length}</span>
+              <span className="ext-metric-label">已安装</span>
+              <span className="ext-metric-hint">
+                {broken > 0 ? `${broken} 个包读不出来` : "全部可读"}
+              </span>
+            </div>
+            <div className="ext-metric">
+              <span className="ext-metric-num">{enabledCount}</span>
+              <span className="ext-metric-label">已启用</span>
+              <span className="ext-metric-hint">
+                {ppl.plan.order.length > 0
+                  ? `按顺序加载 ${ppl.plan.order.length} 个`
+                  : "还没有可加载的扩展"}
+              </span>
+            </div>
+            <div className={`ext-metric${attention > 0 ? " has-issue" : ""}`}>
+              <span className="ext-metric-num">{attention}</span>
+              <span className="ext-metric-label">需要处理</span>
+              <span className="ext-metric-hint">
+                {attention > 0 ? "缺依赖、成环或不兼容" : "没有阻塞项"}
+              </span>
+            </div>
           </div>
+
           <PlanWarnings view={ppl} />
-          {ppl.plan.order.length > 0 && (
-            <div className="load-order">
-              <span className="load-order-label">加载顺序</span>
-              <ol className="load-order-list">
-                {ppl.plan.order.map((id, index) => (
-                  <li key={id} title={id}>
-                    <span className="load-order-index">{index + 1}</span>
-                    {id}
-                  </li>
+
+          <section className="ext-section">
+            <div className="ext-section-head">
+              <h2>已安装</h2>
+              <span className="ext-section-hint">
+                停用会把包移到 <code>.disabled/</code>，可随时移回来
+              </span>
+            </div>
+
+            {rows.length === 0 && !loading ? (
+              <div className="empty ext-empty">
+                <div className="ext-empty-mark" aria-hidden="true">
+                  <PuzzleIcon />
+                </div>
+                <div className="ext-empty-title">还没有安装扩展</div>
+                <p className="ext-empty-desc">
+                  PPL 扩展是一个 <code>.pplx</code> 压缩包，里面带一份{" "}
+                  <code>ppl-extension.json</code>。开发规范见仓库的{" "}
+                  <code>docs/EXTENSIONS.md</code> 与官网文档。
+                </p>
+                <button className="btn btn-primary btn-sm" onClick={() => void importFromDialog()}>
+                  选择 .pplx 文件
+                </button>
+              </div>
+            ) : (
+              <div className="ext-cards">
+                {rows.map((item) => (
+                  <PplCard
+                    key={item.file}
+                    item={item as PplExtension}
+                    busy={busy === item.file}
+                    onToggle={() => void toggle(item)}
+                    onRemove={() => setRemoveTarget(item)}
+                  />
                 ))}
-              </ol>
+              </div>
+            )}
+          </section>
+
+          {ppl.plan.order.length > 0 && <LoadOrder view={ppl} />}
+
+          <p className="ext-foot">
+            扩展目录：<code>{ppl.dir}</code>
+            {!ppl.dirExists && "（还没创建，导入第一个扩展时会自动建）"}
+          </p>
+        </>
+      )}
+
+      {root && format === "rwml" && rwml && (
+        <>
+          <RwmlNotice view={rwml} />
+          {rows.length === 0 && !loading ? (
+            <div className="empty">
+              <div>还没有安装 RWML 扩展</div>
+              <div style={{ fontSize: 12 }}>
+                RWML 扩展是 <code>.jar</code>，里面带 <code>META-INF/extension.properties</code>
+              </div>
+            </div>
+          ) : (
+            <div className="ext-list">
+              {rows.map((item) => (
+                <ExtensionRow
+                  key={item.file}
+                  item={item}
+                  busy={busy === item.file}
+                  onToggle={() => void toggle(item)}
+                  onRemove={() => setRemoveTarget(item)}
+                />
+              ))}
             </div>
           )}
         </>
       )}
 
-      {root && format === "rwml" && rwml && <RwmlNotice view={rwml} />}
-
-      {root &&
-        (rows.length === 0 && !loading ? (
-          <div className="empty">
-            <div>还没有安装任何扩展</div>
-            <div style={{ fontSize: 12 }}>
-              {format === "ppl" ? (
-                <>
-                  PPL 扩展是 <code>.pplx</code>，里面带一份 <code>ppl-extension.json</code>
-                </>
-              ) : (
-                <>
-                  RWML 扩展是 <code>.jar</code>，里面带 <code>META-INF/extension.properties</code>
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="ext-list">
-            {rows.map((item) => (
-              <ExtensionRow
-                key={item.file}
-                item={item}
-                busy={busy === item.file}
-                onToggle={() => void toggle(item)}
-                onRemove={() => setRemoveTarget(item)}
-              />
-            ))}
-          </div>
-        ))}
-
-      {dir && (
+      {format === "rwml" && dir && (
         <p className="ext-foot">
           扩展目录：<code>{dir}</code>
         </p>
@@ -298,6 +358,125 @@ function itemDeps(item: PplExtension | RwmlExtension): string[] {
 
 function itemVersion(item: PplExtension | RwmlExtension): string {
   return "descriptor" in item ? item.descriptor.version : "";
+}
+
+/** PPL 扩展卡片：默认只给一眼能扫的信息，描述符细节收进 <details>。 */
+function PplCard({
+  item,
+  busy,
+  onToggle,
+  onRemove,
+}: {
+  item: PplExtension;
+  busy: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+}) {
+  const { descriptor } = item;
+  const issues: string[] = [];
+  if (!item.valid) issues.push(item.problem ?? "描述符读不出来");
+  if (descriptor.apiVersion > 1) issues.push(`需要运行时 API ${descriptor.apiVersion}`);
+
+  const orderHint = [
+    descriptor.loadAfter.length > 0 && `在 ${descriptor.loadAfter.join("、")} 之后`,
+    descriptor.loadBefore.length > 0 && `在 ${descriptor.loadBefore.join("、")} 之前`,
+  ]
+    .filter(Boolean)
+    .join("；");
+
+  return (
+    <article className={`ext-card${item.enabled ? "" : " off"}${item.valid ? "" : " broken"}`}>
+      <div className="ext-card-main">
+        <div className="ext-card-icon" aria-hidden="true">
+          <PuzzleIcon />
+        </div>
+
+        <div className="ext-card-body">
+          <div className="ext-card-title">
+            <span className="ext-name">{descriptor.name || descriptor.id}</span>
+            {descriptor.version && <span className="badge">{descriptor.version}</span>}
+            {!item.enabled && <span className="badge badge-muted">已停用</span>}
+            {!item.valid && <span className="badge badge-danger">包已损坏</span>}
+          </div>
+
+          {descriptor.description && <p className="ext-card-desc">{descriptor.description}</p>}
+
+          <div className="ext-chips">
+            <code>{descriptor.id}</code>
+            <span>{formatBytes(item.size)}</span>
+            {descriptor.author && <span>{descriptor.author}</span>}
+            {descriptor.dependsOn.length > 0 && (
+              <span>依赖 {descriptor.dependsOn.join("、")}</span>
+            )}
+          </div>
+
+          {issues.map((issue) => (
+            <p className="ext-problem" key={issue}>
+              {issue}
+            </p>
+          ))}
+
+          <details className="ext-details">
+            <summary>描述符细节</summary>
+            <dl className="ext-detail-grid">
+              <dt>文件</dt>
+              <dd>
+                <code>{item.file}</code>
+              </dd>
+              <dt>API 版本</dt>
+              <dd>{descriptor.apiVersion}</dd>
+              <dt>入口类</dt>
+              <dd>{descriptor.mainClass ?? "—"}</dd>
+              <dt>Mixin</dt>
+              <dd>{descriptor.mixins.length > 0 ? descriptor.mixins.join("、") : "—"}</dd>
+              <dt>顺序偏好</dt>
+              <dd>{orderHint || "—"}</dd>
+              <dt>最低游戏版本</dt>
+              <dd>{descriptor.minGame ?? "未声明"}</dd>
+            </dl>
+          </details>
+        </div>
+
+        <div className="ext-card-actions">
+          <button
+            className={`switch${item.enabled ? " on" : ""}`}
+            role="switch"
+            aria-checked={item.enabled}
+            aria-label={`${item.enabled ? "停用" : "启用"} ${descriptor.name || descriptor.id}`}
+            disabled={busy || !item.valid}
+            onClick={onToggle}
+          />
+          <button className="btn btn-sm btn-ghost" onClick={onRemove} disabled={busy}>
+            删除
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** 加载顺序：默认折叠，展开后按序号列出，并说明排序依据。 */
+function LoadOrder({ view }: { view: ExtensionsView }) {
+  return (
+    <details className="ext-order">
+      <summary>
+        <span>加载顺序</span>
+        <span className="ext-order-count">{view.plan.order.length} 个</span>
+      </summary>
+      <ol className="ext-order-list">
+        {view.plan.order.map((id, index) => (
+          <li key={id} title={id}>
+            <span className="ext-order-index">{index + 1}</span>
+            <code>{id}</code>
+          </li>
+        ))}
+      </ol>
+      <p className="ext-order-note">
+        先满足 <code>dependsOn</code> 的硬依赖，再叠加 <code>loadAfter</code> /{" "}
+        <code>loadBefore</code>，同层按 id 字典序，保证两台机器上的顺序一致。
+      </p>
+    </details>
+  );
 }
 
 /** RWML 模式的提示：装没装加载器、停用方式未验证。 */

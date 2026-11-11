@@ -1,0 +1,101 @@
+---
+/**
+ * 文档布局：左侧固定目录 + 右侧正文。
+ * 目录在窄屏收进 <details>，不做抽屉——静态站没必要为这个上 JS。
+ */
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import { SITE, url } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  /** 页面在目录里的位置，用来高亮 */
+  current: string;
+  updated?: string;
+}
+
+const { title, description, current, updated } = Astro.props;
+
+const nav = [
+  { label: '文档首页', href: url('/docs'), id: 'index' },
+  { label: '.pplx 规范', href: url('/docs/pplx'), id: 'pplx' },
+];
+
+const others = [
+  { label: '关于 PPL', href: url('/about') },
+  { label: '隐私说明', href: url('/privacy') },
+  { label: '使用条款', href: url('/terms') },
+];
+---
+
+<BaseLayout title={title} description={description}>
+  <Header slot="header" />
+
+  <div class="mx-auto max-w-6xl px-6 py-10 md:py-14 lg:grid lg:grid-cols-[196px_minmax(0,1fr)] lg:gap-14">
+    <aside class="mb-8 lg:mb-0">
+      <details class="doc-nav-mobile lg:hidden" open>
+        <summary>文档目录</summary>
+        <nav class="mt-3 grid gap-1" aria-label="文档目录（移动端）">
+          {
+            nav.map((item) => (
+              <a
+                href={item.href}
+                class:list={['doc-link', item.id === current && 'is-active']}
+                aria-current={item.id === current ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
+
+      <nav class="hidden lg:block lg:sticky lg:top-24" aria-label="文档目录">
+        <p class="doc-nav-title">文档</p>
+        <div class="mt-2 grid gap-1">
+          {
+            nav.map((item) => (
+              <a
+                href={item.href}
+                class:list={['doc-link', item.id === current && 'is-active']}
+                aria-current={item.id === current ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </div>
+
+        <p class="doc-nav-title mt-8">相关</p>
+        <div class="mt-2 grid gap-1">
+          {others.map((item) => <a href={item.href} class="doc-link">{item.label}</a>)}
+        </div>
+
+        <a href={SITE.repo} target="_blank" rel="noreferrer" class="doc-nav-repo">
+          源码仓库 ↗
+        </a>
+      </nav>
+    </aside>
+
+    <article class="doc-body">
+      <header class="mb-10">
+        <h1 class="doc-title">{title}</h1>
+        <p class="doc-lead">{description}</p>
+        {updated && <p class="doc-meta">最后更新：{updated}</p>}
+      </header>
+
+      <slot />
+
+      <div class="doc-foot">
+        <a href={url('/docs')} class="doc-foot-link">← 返回文档首页</a>
+        <a href={SITE.issues} target="_blank" rel="noreferrer" class="doc-foot-link">
+          文档有误？提个 Issue ↗
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>

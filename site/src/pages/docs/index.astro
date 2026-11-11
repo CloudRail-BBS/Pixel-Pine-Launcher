@@ -1,0 +1,98 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { SITE, url } from '../../lib/site';
+---
+
+<DocsLayout
+  title="文档"
+  description="PPL 的使用说明与扩展开发规范。扩展格式 .pplx 的完整定义在这里。"
+  current="index"
+  updated="2026-11-11"
+>
+  <div class="doc-cards">
+    <a href={url('/docs/pplx')} class="doc-card">
+      <span class="doc-card-tag">规范</span>
+      <h2>.pplx 扩展规范</h2>
+      <p>包结构、清单字段、加载顺序与打包方式。写扩展前先读这一页。</p>
+      <span class="doc-card-go">阅读规范 →</span>
+    </a>
+
+    <a href={SITE.repo} target="_blank" rel="noreferrer" class="doc-card">
+      <span class="doc-card-tag">源码</span>
+      <h2>参考实现</h2>
+      <p>解析、校对与排序都在 <code>crates/ppl-core/src/extensions.rs</code>，带单元测试。</p>
+      <span class="doc-card-go">在 GitHub 查看 ↗</span>
+    </a>
+  </div>
+
+  <h2 id="quickstart">快速开始</h2>
+
+  <ol class="doc-steps">
+    <li>
+      <strong>装好启动器。</strong>从 <a href={SITE.releases} target="_blank" rel="noreferrer">Releases</a>
+      下载对应平台的安装包，装到当前用户目录即可，不需要管理员权限。
+    </li>
+    <li>
+      <strong>指一下游戏目录。</strong>在「库」页选择已安装的《铁锈战争》，或让 PPL 下载一份。
+      扩展会装进游戏的 <code>ppl/extensions/</code>，不碰 Steam 自己的文件。
+    </li>
+    <li>
+      <strong>导入扩展。</strong>在「扩展」页点「导入扩展」，选一个 <code>.pplx</code> 文件。
+      导入后会立刻出现在列表里，用右侧开关启用或停用。
+    </li>
+  </ol>
+
+  <div class="doc-callout">
+    <strong>运行时尚未接入。</strong>目前启动器能安装、启停、检查依赖并算好加载顺序，
+    但游戏进程还不会真正应用扩展。状态在扩展页顶部也写着——宁可少一个功能，
+    也不给一个装完没反应的按钮。
+  </div>
+
+  <h2 id="concepts">几个概念</h2>
+
+  <div class="doc-table">
+    <table>
+      <thead>
+        <tr>
+          <th>概念</th>
+          <th>是什么</th>
+          <th>放在哪</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>扩展</strong></td>
+          <td>一个 <code>.pplx</code> 包，改游戏行为的最小单位</td>
+          <td><code>&lt;游戏&gt;/ppl/extensions/</code></td>
+        </tr>
+        <tr>
+          <td><strong>作战预设</strong></td>
+          <td>一套 Mod 组合，切换时只重建 <code>mods/units</code> 链接</td>
+          <td><code>&lt;PPL 数据根&gt;/loadouts/</code></td>
+        </tr>
+        <tr>
+          <td><strong>加载计划</strong></td>
+          <td>按依赖与偏好算出的扩展加载顺序</td>
+          <td>启动时算，不落盘</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="support">遇到问题</h2>
+
+  <p>
+    扩展页会把「缺依赖 / 成环 / API 版本过高 / 包损坏」都列出来，先看那里。
+    如果问题在规范本身或解析器上，去
+    <a href={SITE.issues} target="_blank" rel="noreferrer">Issues</a> 反馈，
+    附上扩展的描述符（<code>ppl-extension.json</code>）通常就能定位。
+  </p>
+
+  <h2 id="more">更多</h2>
+
+  <ul>
+    <li><a href={url('/#faq')}>产品常见问题</a>：授权、数据、平台支持。</li>
+    <li><a href={url('/about')}>关于 PPL</a>：它做什么、不做什么。</li>
+    <li><a href={SITE.repo} target="_blank" rel="noreferrer">源码仓库</a>：内核、服务端与后台。</li>
+  </ul>
+</DocsLayout>

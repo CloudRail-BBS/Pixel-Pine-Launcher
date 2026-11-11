@@ -24,6 +24,7 @@ Node 22+。构建产物是纯静态文件，任何静态托管都能放。
 | 首页文案、特性卡、FAQ | `src/pages/index.astro` |
 | 下载三平台卡片 | `src/lib/site.ts` 的 `PLATFORMS` |
 | 关于 / 隐私 / 条款 | `src/pages/*.astro` |
+| 文档（含 .pplx 规范） | `src/pages/docs/*.astro`，布局在 `src/layouts/DocsLayout.astro` |
 | 配色、玻璃、渐变 | `src/styles/global.css` 顶部的 `@theme` 与 CSS 变量 |
 | 站点图标 / OG 图 | `public/favicon.png`、`public/apple-touch-icon.png`、`public/og.png` |
 | 界面截图 | `public/screenshots/*.webp`（1440×900，约 30KB） |

@@ -1,0 +1,333 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { SITE } from '../../lib/site';
+
+const manifest = `{
+  "schema": 1,
+  "id": "org.example.zoom",
+  "name": "缩放控制",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "mainClass": "org.example.zoom.ZoomExtension",
+  "mixins": ["org.example.zoom.mixin.CameraMixin"],
+  "dependsOn": ["org.ppl.core@>=1.0"],
+  "loadAfter": [],
+  "loadBefore": [],
+  "author": "someone",
+  "description": "把相机缩放上限放宽到 4 倍",
+  "minGame": "1.15"
+}`;
+
+const minimal = `{
+  "schema": 1,
+  "id": "org.example.hello",
+  "name": "Hello"
+}`;
+
+const tree = `<游戏目录>/
+└─ ppl/
+   └─ extensions/
+      ├─ org.example.zoom.pplx     启用中
+      └─ .disabled/
+         └─ org.example.old.pplx   已停用`;
+
+const packageTree = `my-extension/
+├─ ppl-extension.json          必需，必须在包根
+├─ lib/                        可选，扩展自带的依赖
+└─ org/example/zoom/
+   ├─ ZoomExtension.class
+   └─ mixin/CameraMixin.class`;
+---
+
+<DocsLayout
+  title=".pplx 扩展规范"
+  description="PPL 自有扩展格式：包结构、清单字段、校验规则、加载顺序与打包。"
+  current="pplx"
+  updated="2026-11-11"
+>
+  <div class="doc-callout">
+    <strong>状态：静态部分已实现。</strong>识别、安装、启停、依赖解析与加载顺序都有代码和单元测试；
+    运行时（真正把扩展注入游戏进程）<em>尚未实现</em>。下面凡是涉及运行时的部分都会单独标注。
+  </div>
+
+  <h2 id="why">为什么另起一套</h2>
+
+  <p>
+    社区里已有一套基于 JVM mixin 的加载器（RWML / RWPP）。PPL 不复用它的目录、描述符或包格式，
+    原因不是「想再造一个」：
+  </p>
+
+  <ul>
+    <li>
+      <strong>许可证不兼容。</strong>那套项目用的是自定义团队许可证，抄格式、抄字段都有风险。
+    </li>
+    <li>
+      <strong>目录会打架。</strong>它占用 <code>&lt;游戏&gt;/extensions/</code>。两边共用同一目录时，
+      「谁启用了谁」根本说不清。
+    </li>
+    <li>
+      <strong>它不是我们能修的。</strong>依赖别人的加载器，意味着对方的崩溃与兼容性变更
+      都会直接砸到 PPL 用户头上。
+    </li>
+  </ul>
+
+  <div class="doc-table">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>社区方案</th>
+          <th>PPL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>目录</td>
+          <td><code>&lt;游戏&gt;/extensions/</code></td>
+          <td><code>&lt;游戏&gt;/ppl/extensions/</code></td>
+        </tr>
+        <tr>
+          <td>描述符</td>
+          <td><code>META-INF/extension.properties</code></td>
+          <td>包根 <code>ppl-extension.json</code></td>
+        </tr>
+        <tr>
+          <td>包后缀</td>
+          <td><code>.jar</code></td>
+          <td><code>.pplx</code>（本质是 zip）</td>
+        </tr>
+        <tr>
+          <td>依赖解析</td>
+          <td>加载器自己算</td>
+          <td>启动器算好顺序，运行时只执行</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="package">包格式</h2>
+
+  <p>
+    一个 <code>.pplx</code> 就是普通 zip。目录层级没有强制要求，但
+    <strong>描述符必须在包根</strong>：启动器只读这一个条目，不解压整个包。
+  </p>
+
+  <pre class="doc-pre"><code>{packageTree}</code></pre>
+
+  <p>
+    描述符以外的东西启动器不关心，也不会执行——它只做静态校验与排序。
+    真正加载类、注入 mixin 是运行时的事。
+  </p>
+
+  <h2 id="manifest">清单字段</h2>
+
+  <p>一份最小清单只有三个字段：</p>
+
+  <pre class="doc-pre"><code>{minimal}</code></pre>
+
+  <p>完整示例：</p>
+
+  <pre class="doc-pre"><code>{manifest}</code></pre>
+
+  <div class="doc-table">
+    <table>
+      <thead>
+        <tr>
+          <th>字段</th>
+          <th>必填</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>schema</code></td>
+          <td>否</td>
+          <td>格式版本，默认 <code>1</code>。只接受 <code>1</code>，其它值直接拒收。</td>
+        </tr>
+        <tr>
+          <td><code>id</code></td>
+          <td>是</td>
+          <td>
+            唯一标识，也是依赖关系的键。<strong>只允许字母、数字、<code>.</code>、<code>-</code>、<code>_</code></strong>，
+            不超过 128 字符，不能以 <code>.</code> 开头。
+          </td>
+        </tr>
+        <tr>
+          <td><code>name</code></td>
+          <td>否</td>
+          <td>展示名。留空时用 <code>id</code>。</td>
+        </tr>
+        <tr>
+          <td><code>version</code></td>
+          <td>否</td>
+          <td>仅用于展示，不参与任何求解。</td>
+        </tr>
+        <tr>
+          <td><code>apiVersion</code></td>
+          <td>否</td>
+          <td>需要的运行时 API 版本，默认 <code>1</code>。高于启动器支持的值会被跳过并在界面提示。</td>
+        </tr>
+        <tr>
+          <td><code>mainClass</code></td>
+          <td>否</td>
+          <td>入口类，由运行时实例化。</td>
+        </tr>
+        <tr>
+          <td><code>mixins</code></td>
+          <td>否</td>
+          <td>要注入的类清单。</td>
+        </tr>
+        <tr>
+          <td><code>dependsOn</code></td>
+          <td>否</td>
+          <td>硬依赖。可以带 <code>@</code> 版本约束，但<strong>启动器只取 <code>@</code> 前面的 id</strong>，不做版本求解。</td>
+        </tr>
+        <tr>
+          <td><code>loadAfter</code> / <code>loadBefore</code></td>
+          <td>否</td>
+          <td>软顺序偏好，只在没有硬依赖冲突时生效。</td>
+        </tr>
+        <tr>
+          <td><code>author</code> / <code>description</code></td>
+          <td>否</td>
+          <td>展示用。</td>
+        </tr>
+        <tr>
+          <td><code>minGame</code></td>
+          <td>否</td>
+          <td>最低游戏版本，仅提示，不参与校验。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="normalize">列表字段会被归一化</h3>
+
+  <p>
+    <code>dependsOn</code>、<code>loadAfter</code>、<code>loadBefore</code> 里的字符串会被拆分、去空格、
+    去掉 <code>@</code> 之后的版本约束，然后<strong>排序并去重</strong>。所以
+    <code>["b, a@1.0", "a"]</code> 等价于 <code>["a", "b"]</code>。
+  </p>
+
+  <p>
+    这样做的后果要清楚：<strong>写版本约束不会锁版本</strong>。想约束别人，只能靠文档和社区约定。
+  </p>
+
+  <h2 id="dir">目录与启停</h2>
+
+  <pre class="doc-pre"><code>{tree}</code></pre>
+
+  <p>
+    启用 / 停用就是在这两个目录之间移动文件：可逆、不删数据，用户手动也能还原。
+    只认 <code>.pplx</code> 与 <code>.zip</code>，其它文件会被忽略。
+  </p>
+
+  <p>
+    报告「包已损坏」不会把文件删掉，也不会静默跳过：包里没有
+    <code>ppl-extension.json</code>、zip 打不开、JSON 非法或字段不合规，都会在列表里标出来并写下原因。
+  </p>
+
+  <h2 id="order">加载顺序</h2>
+
+  <p>启动器在启动游戏前算好顺序，规则是确定的：</p>
+
+  <ol class="doc-steps">
+    <li><code>dependsOn</code> 声明的依赖<strong>必须先加载</strong>（硬边）。</li>
+    <li>再叠加 <code>loadAfter</code> / <code>loadBefore</code> 的软边。</li>
+    <li>同时可用时按 <strong>id 字典序</strong>取最小。</li>
+    <li>有环 → 整组都不加载，界面明确报出来。</li>
+    <li>缺依赖 → <strong>只跳过缺依赖的那一个</strong>，其余照常加载。</li>
+    <li><code>apiVersion</code> 高于运行时 → 跳过并提示。</li>
+  </ol>
+
+  <p>
+    「必须是确定的」不是洁癖：同一批扩展在两台机器上顺序不同，问题会变得无法复现。
+    这几条都有单元测试覆盖（<code>crates/ppl-core/src/extensions.rs</code>），因为顺序错会让游戏直接崩。
+  </p>
+
+  <h2 id="pack">打包</h2>
+
+  <pre class="doc-pre"><code>{`cd my-extension
+zip -r ../org.example.zoom.pplx . -x '.*'`}</code></pre>
+
+  <p>
+    文件名建议直接用 <code>id</code>，方便用户和依赖关系对上。包里的内容不限，
+    但启动器只校验描述符——坏包会拒收并标为「包已损坏」，不会悄悄放行一个永远不会生效的文件。
+  </p>
+
+  <h2 id="runtime">运行时现状</h2>
+
+  <p>
+    静态部分只负责「装好、排好、告诉运行时」。真正改写游戏类的是一个 JVM agent，
+    <strong>目前没有任何代码</strong>，不要把它当成已实现：
+  </p>
+
+  <pre class="doc-pre"><code>{`启动器                          运行时（agent）
+  │  算出 order                   │
+  │  写 ppl/runtime/plan.json     │
+  ├──────────────────────────────▶│  读 plan.json
+  │  java -javaagent:...          │  按顺序加载各 .pplx
+  │                               │  ClassFileTransformer 注入 mixin`}</code></pre>
+
+  <p>在写生产代码之前，需要先验证四件事：</p>
+
+  <div class="doc-table">
+    <table>
+      <thead>
+        <tr>
+          <th>问题</th>
+          <th>为什么必须先验证</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>游戏启动入口能否传 JVM 参数</td>
+          <td>有些打包器会把参数吃掉，<code>-javaagent</code> 可能根本传不进去。</td>
+        </tr>
+        <tr>
+          <td>游戏用哪个 JRE、版本多少</td>
+          <td>agent 编译出的 class 版本不能高于运行时。</td>
+        </tr>
+        <tr>
+          <td>类名映射从哪来</td>
+          <td>混淆过的 jar，没有映射就写不出可用的 mixin。</td>
+        </tr>
+        <tr>
+          <td>Android 端怎么办</td>
+          <td>那边是 dex，JVM agent 完全不适用，需要另一套。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="compat">RWML 兼容模式</h2>
+
+  <p>
+    启动器也能把社区加载器的扩展<strong>当文件管理</strong>：读取对方的
+    <code>META-INF/extension.properties</code> 用于展示，开关就是移动文件。默认关闭，推荐用 PPL 格式。
+  </p>
+
+  <ul>
+    <li>只做互操作：不加载、不注入、不包含对方任何代码。</li>
+    <li>不替用户安装加载器：只检测 <code>game-lib.jar.original</code> 与 <code>rwml-runtime</code>。</li>
+    <li>停用方式尚未实测：把它移进 <code>extensions/.disabled/</code> 是基于「按目录扫描」的推测。</li>
+  </ul>
+
+  <h2 id="tips">给扩展作者</h2>
+
+  <ul>
+    <li><code>id</code> 一旦发布就别改：依赖关系、文件名都挂在它上面。</li>
+    <li>别用 <code>dependsOn</code> 里的版本约束来「锁版本」，写了也会被忽略。</li>
+    <li>多个扩展要协作，就抽一个 <code>core</code> 扩展出来，让别的扩展依赖它，而不是互相 <code>loadAfter</code> 打转。</li>
+    <li>
+      描述符里的 <code>description</code> 会直接显示在扩展页，写清楚「这个扩展改了什么」，
+      比写「优化体验」有用得多。
+    </li>
+  </ul>
+
+  <p>
+    规范的权威版本在仓库 <code>docs/EXTENSIONS.md</code>，解析器在
+    <code>crates/ppl-core/src/extensions.rs</code>。两处不一致时以代码为准，
+    并欢迎到 <a href={SITE.issues} target="_blank" rel="noreferrer">Issues</a> 指出。
+  </p>
+</DocsLayout>

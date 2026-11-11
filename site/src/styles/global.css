@@ -380,3 +380,381 @@ img[data-fade].is-loaded {
     display: none;
   }
 }
+
+/* ================================================
+   文档
+   ================================================ */
+
+.doc-nav-title {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+.doc-link {
+  display: block;
+  padding: 6px 10px;
+  margin-left: -10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.doc-link:hover {
+  color: var(--text-primary);
+  background: var(--glass-bg);
+}
+
+.doc-link.is-active {
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  font-weight: 500;
+}
+
+.doc-nav-repo {
+  display: inline-block;
+  margin-top: 28px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.doc-nav-repo:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.doc-nav-mobile {
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  padding: 10px 14px;
+}
+
+.doc-nav-mobile > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+.doc-nav-mobile > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 正文：行宽控制在 72ch 左右，长文档最怕一行横跨整屏 */
+.doc-body {
+  max-width: 760px;
+}
+
+.doc-title {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 38px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.doc-lead {
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.doc-meta {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-body h2 {
+  margin: 44px 0 14px;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  scroll-margin-top: 6rem;
+}
+
+.doc-body h3 {
+  margin: 28px 0 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.doc-body p {
+  margin: 0 0 14px;
+  font-size: 15.5px;
+  line-height: 1.78;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+/* 不要用 display: grid（项目符号会消失），list-style 也要显式写回：
+   Tailwind preflight 把 ul/ol 的 list-style 统一清成了 none。 */
+.doc-body ul,
+.doc-body ol {
+  margin: 0 0 16px;
+  padding-left: 24px;
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.doc-body ul {
+  list-style: disc outside;
+}
+
+.doc-body ol {
+  list-style: decimal outside;
+}
+
+.doc-body li {
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.doc-body li:last-child {
+  margin-bottom: 0;
+}
+
+.doc-body li::marker {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.doc-body strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.doc-body a {
+  color: var(--color-primary-500);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--color-primary-500) 40%, transparent);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 160ms ease;
+}
+
+.doc-body a:hover {
+  text-decoration-color: var(--color-primary-500);
+}
+
+.doc-body :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* 代码块：横向滚动，不换行——换行后的 JSON 很难核对字段 */
+.doc-pre {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--bg) 88%, var(--color-primary-500) 3%);
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+
+.doc-pre code {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: pre;
+}
+
+.doc-table {
+  margin: 0 0 20px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  /* 表格里的长 inline code 会把单元格撑破，允许横向滚动兜底 */
+  overflow-x: auto;
+  background: var(--glass-bg);
+}
+
+/* 单元格里的行内代码必须能折行：字段说明里全是 `.` `-` `_` 这种不可断字符 */
+.doc-table code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.doc-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.doc-table th,
+.doc-table td {
+  padding: 11px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--glass-border);
+  line-height: 1.65;
+}
+
+.doc-table th {
+  background: color-mix(in oklab, var(--bg) 70%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.doc-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.doc-table td {
+  color: var(--text-secondary);
+}
+
+.doc-table td strong {
+  color: var(--text-primary);
+}
+
+/* 步骤：编号做成小圆点，比默认数字更清楚 */
+.doc-steps {
+  counter-reset: step;
+  padding-left: 0 !important;
+  list-style: none !important;
+}
+
+.doc-steps li {
+  position: relative;
+  padding-left: 34px;
+  counter-increment: step;
+}
+
+.doc-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 3px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--color-primary-500) 16%, transparent);
+  color: var(--color-primary-500);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-callout {
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--color-primary-500);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--text-secondary);
+}
+
+.doc-callout strong {
+  color: var(--text-primary);
+}
+
+.doc-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 34px;
+}
+
+.doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms ease;
+}
+
+.doc-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-primary-500) 45%, var(--glass-border));
+}
+
+.doc-card-tag {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary-500);
+}
+
+.doc-card h2 {
+  margin: 2px 0 0 !important;
+  font-size: 17px !important;
+  color: var(--text-primary);
+}
+
+.doc-card p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.doc-card-go {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.doc-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.doc-foot-link {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.doc-foot-link:hover {
+  color: var(--text-primary);
+}
+
+@media (max-width: 760px) {
+  .doc-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-table {
+    overflow-x: auto;
+  }
+
+  .doc-body h2 {
+    margin-top: 36px;
+  }
+}

@@ -10,8 +10,116 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./api";
 import type { ExtensionsView, PplExtension, RwmlExtension, RwmlView } from "./types";
 
+/**
+ * 浏览器预览用的假数据。
+ *
+ * `npm run dev` 直接开页面调样式时没有 Tauri，内核调不到；
+ * 给一份带「缺依赖 / 坏包 / 已停用」的样本，才能看到各种状态长什么样。
+ */
+const DEMO_VIEW: ExtensionsView = {
+  dir: "D:/Steam/steamapps/common/Rusted Warfare/ppl/extensions",
+  dirExists: true,
+  extensions: [
+    {
+      descriptor: {
+        schema: 1,
+        id: "org.ppl.core",
+        name: "PPL 核心库",
+        version: "1.2.0",
+        apiVersion: 1,
+        mainClass: "org.ppl.core.CoreExtension",
+        mixins: [],
+        dependsOn: [],
+        loadAfter: [],
+        loadBefore: [],
+        author: "CloudRail BBS",
+        description: "其它扩展共用的接口与工具类，单独放一个包，避免互相抄实现。",
+        minGame: "1.15",
+      },
+      file: "org.ppl.core.pplx",
+      size: 48_200,
+      enabled: true,
+      valid: true,
+      problem: null,
+    },
+    {
+      descriptor: {
+        schema: 1,
+        id: "org.example.zoom",
+        name: "缩放控制",
+        version: "1.0.0",
+        apiVersion: 1,
+        mainClass: "org.example.zoom.ZoomExtension",
+        mixins: ["org.example.zoom.mixin.CameraMixin"],
+        dependsOn: ["org.ppl.core"],
+        loadAfter: [],
+        loadBefore: [],
+        author: "someone",
+        description: "相机缩放上限放宽到 4 倍，滚轮手感更接近即时战略的常规值。",
+        minGame: "1.15",
+      },
+      file: "org.example.zoom.pplx",
+      size: 132_400,
+      enabled: true,
+      valid: true,
+      problem: null,
+    },
+    {
+      descriptor: {
+        schema: 1,
+        id: "org.example.audio",
+        name: "音效增强",
+        version: "0.3.0",
+        apiVersion: 1,
+        mainClass: null,
+        mixins: [],
+        dependsOn: ["org.example.missing"],
+        loadAfter: [],
+        loadBefore: [],
+        author: "",
+        description: "替换部分环境音，缺少依赖所以不会被加载。",
+        minGame: null,
+      },
+      file: "org.example.audio.pplx",
+      size: 2_411_000,
+      enabled: true,
+      valid: true,
+      problem: null,
+    },
+    {
+      descriptor: {
+        schema: 1,
+        id: "old-pack.pplx",
+        name: "old-pack.pplx",
+        version: "",
+        apiVersion: 1,
+        mainClass: null,
+        mixins: [],
+        dependsOn: [],
+        loadAfter: [],
+        loadBefore: [],
+        author: "",
+        description: "",
+        minGame: null,
+      },
+      file: "old-pack.pplx",
+      size: 8_900,
+      enabled: false,
+      valid: false,
+      problem: "包里没有 ppl-extension.json，不是 PPL 扩展",
+    },
+  ],
+  plan: {
+    order: ["org.ppl.core", "org.example.zoom"],
+    missing: [{ owner: "org.example.audio", missing: "org.example.missing" }],
+    cycles: [],
+    incompatible: [],
+  },
+};
+
 /** 扫描已装扩展并算出加载计划。 */
 export async function scanExtensions(root: string): Promise<ExtensionsView> {
+  if (!isTauri()) return DEMO_VIEW;
   return invoke<ExtensionsView>("scan_extensions", { root });
 }
 
