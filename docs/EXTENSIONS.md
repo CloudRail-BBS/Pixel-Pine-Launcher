@@ -4,7 +4,7 @@
 > **运行时未实现**（还不能真正注入游戏进程）。
 > 本文同时说明为什么要自己写一套、以及运行时怎么接。
 >
-> 在线版本（排版更好读）：https://cloudrail-bbs.github.io/Pixel-Pine-Launcher/docs/pplx/
+> 在线版本（排版更好读）：https://ppl.pixelpine.org/docs/pplx/
 
 ---
 

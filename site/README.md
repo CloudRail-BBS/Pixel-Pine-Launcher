@@ -3,7 +3,7 @@
 项目官网，基于 [astro-seo-theme](https://github.com/druedaro/astro-seo-theme)（MIT）改造：
 保留它的布局组件、SEO 基础设施与 Tailwind 体系，内容与配色换成 PPL 自己的。
 
-线上地址：<https://cloudrail-bbs.github.io/Pixel-Pine-Launcher/>
+线上地址：<https://ppl.pixelpine.org/>
 
 ## 本地开发
 

@@ -5,17 +5,16 @@ import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 
 /**
- * GitHub Pages 项目站点的地址是 `https://<用户>.github.io/<仓库>/`。
+ * 站点挂在自定义域名 `ppl.pixelpine.org` 的根路径上，所以 **不设 base**。
  *
- * base 必须写上：漏掉的话构建产物里的 `/logo.png`、`/about` 全都指向
- * `https://<用户>.github.io/`，线上表现是整页无样式 + 首页以外的链接 404，
- * 而本地 `astro dev` 一切正常——这是部署到项目站点最常见的坑。
- *
- * 以后换自定义域名时，把 site 改成域名、base 删掉即可。
+ * 反过来要注意：如果哪天改回 GitHub Pages 的项目路径
+ * （`https://<用户>.github.io/<仓库>/`），必须补上 `base: '/<仓库>'`，
+ * 否则资源会指向域名根、整页无样式，而 `astro dev` 一切正常——
+ * 这是项目站点最常见的坑。站内链接统一走 `lib/site.ts` 的 `url()`，
+ * 换托管方式时只需要改这里。
  */
 export default defineConfig({
-  site: 'https://cloudrail-bbs.github.io',
-  base: '/Pixel-Pine-Launcher',
+  site: 'https://ppl.pixelpine.org',
   output: 'static',
 
   vite: {

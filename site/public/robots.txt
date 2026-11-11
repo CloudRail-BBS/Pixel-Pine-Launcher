@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cloudrail-bbs.github.io/Pixel-Pine-Launcher/sitemap-index.xml
+Sitemap: https://ppl.pixelpine.org/sitemap-index.xml
