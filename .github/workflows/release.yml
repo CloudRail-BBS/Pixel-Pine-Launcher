@@ -189,11 +189,47 @@ jobs:
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.sig
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
 
+  # Android 端是原生 Kotlin/Compose，和桌面的 Tauri 构建链无关，单独一个 job。
+  # 只出 debug 签名包：仓里还没有 Android 签名密钥，先把可安装的包发出来。
+  android:
+    name: Android APK
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 仓库里没有 gradle wrapper（本地没装 Gradle 时生成不了 jar），
+      # 这里固定一个版本，保证 CI 与本地行为一致。
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: 构建 APK
+        working-directory: apps/android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: 整理产物
+        run: |
+          mkdir -p dist
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/Pixel-Pine-Launcher-${GITHUB_REF_NAME}-android.apk"
+          ls -lh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+
   # 发版集中在一个任务里做：四个平台各自 create release 会互相覆盖，
   # 尤其是 latest.json——被后完成的任务整份重写，就少一个平台的更新条目
   publish:
     name: 汇总发布
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

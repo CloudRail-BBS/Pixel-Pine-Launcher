@@ -1073,3 +1073,37 @@ img[data-fade].is-loaded {
     display: none;
   }
 }
+
+/* ================================================
+   向下滚动：进场与视差
+   ================================================ */
+
+/*
+ * 默认可见，只有脚本确认支持 IntersectionObserver 时才隐藏。
+ * 这样禁用 JS、或被 CSP 拦掉时，页面仍然是完整的。
+ */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* 视差元素自己会写 transform，不要再叠进场的位移动画 */
+.reveal-ready [data-reveal][data-parallax] {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

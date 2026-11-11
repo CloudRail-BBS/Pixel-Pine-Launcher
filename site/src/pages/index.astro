@@ -87,7 +87,7 @@ const websiteSchema = {
         lead="左边是实例与预设，右边是当前的 Mod 列表。装完就在这儿，不用再翻文件夹。"
       />
 
-      <figure class="media glass overflow-hidden rounded-2xl">
+      <figure class="media glass overflow-hidden rounded-2xl" data-reveal data-parallax>
         <img
           src={url('/screenshots/library.webp')}
           alt="库页：左侧是实例与预设，右侧是已安装的 Mod 列表，每行显示版本与启用开关"
@@ -100,7 +100,7 @@ const websiteSchema = {
         />
       </figure>
 
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
+      <div class="mt-6 grid gap-6 md:grid-cols-2" data-reveal>
         <figure class="media glass overflow-hidden rounded-2xl">
           <img
             src={url('/screenshots/market.webp')}
@@ -139,7 +139,7 @@ const websiteSchema = {
     <div class="mx-auto max-w-5xl">
       <SectionHead glyph="◈" title="三步开始" lead="不用读文档也能装上：下载、指一下游戏、挑个预设。" />
 
-      <ol class="grid gap-4 sm:grid-cols-3">
+      <ol class="grid gap-4 sm:grid-cols-3" data-reveal>
         {
           [
             { step: '01', title: '装好启动器', desc: '从 Release 下载对应平台的安装包，装到当前用户目录即可。' },
@@ -219,7 +219,7 @@ const websiteSchema = {
         lead="预览版：功能可用，但请当作测试版看待。安装包由 CI 在打版本标签时构建，三平台共用同一份更新签名。"
       />
 
-      <div class="mt-12 grid gap-5 md:grid-cols-3">
+      <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" data-reveal>
         {
           PLATFORMS.map((platform) => (
             <article class="glass flex flex-col rounded-2xl p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary-500)]/60">
@@ -317,7 +317,7 @@ const websiteSchema = {
 
   <!-- ── 收尾 CTA ────────────────────────────────────────── -->
   <section class="px-6 py-20 md:py-28">
-    <div class="mx-auto max-w-3xl text-center">
+    <div class="mx-auto max-w-3xl text-center" data-reveal>
       <h2 class="text-[clamp(28px,4.4vw,46px)] font-bold leading-[1.15] tracking-tight">
         换个玩法，<br class="sm:hidden" />不该是搬一次文件
       </h2>

@@ -14,7 +14,7 @@ interface Props {
 const { glyph, title, lead, align = 'center', id } = Astro.props;
 ---
 
-<div class:list={['section-head', align === 'left' ? 'is-left' : 'is-center']}>
+<div class:list={['section-head', align === 'left' ? 'is-left' : 'is-center']} data-reveal>
   <span class="section-glyph" aria-hidden="true">{glyph}</span>
   <h2 id={id} class="section-title">{title}</h2>
   {lead && <p class="section-lead">{lead}</p>}

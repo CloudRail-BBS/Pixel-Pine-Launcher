@@ -85,6 +85,19 @@ const ogImage = absoluteUrl(image);
       })();
     </script>
 
+    <!--
+      滚动进场的「预置」必须在 head 里做：等 DOM 加载完再加类，
+      首屏元素会先正常绘制、随后被隐藏，闪一下反而更难看。
+      不支持 IntersectionObserver 或用户要求减少动态时，干脆不加类，内容始终可见。
+    -->
+    <script is:inline>
+      (function () {
+        if (!('IntersectionObserver' in window)) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        document.documentElement.classList.add('reveal-ready');
+      })();
+    </script>
+
     <slot name="head" />
   </head>
   <body
@@ -155,6 +168,54 @@ const ogImage = absoluteUrl(image);
           if (img.complete && img.naturalWidth > 0) done();
           else img.addEventListener('load', done, { once: true });
         });
+      })();
+
+      // 滚动进场 + 轻视差。参考站那种「往下滑内容一层层浮上来」的节奏，
+      // 但只做一次：元素露出后就取消观察，不做无限重放。
+      (function () {
+        if (!document.documentElement.classList.contains('reveal-ready')) return;
+
+        var items = document.querySelectorAll('[data-reveal]');
+        if (!items.length) return;
+
+        var observer = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (!entry.isIntersecting) return;
+              entry.target.classList.add('is-visible');
+              observer.unobserve(entry.target);
+            });
+          },
+          { rootMargin: '0px 0px -10% 0px', threshold: 0.06 }
+        );
+        items.forEach(function (item) {
+          observer.observe(item);
+        });
+
+        // 视差只在桌面端做：窄屏上滚动时位移最容易让人晕
+        var layers = Array.prototype.slice.call(document.querySelectorAll('[data-parallax]'));
+        if (!layers.length || window.innerWidth < 900) return;
+
+        var ticking = false;
+        function update() {
+          ticking = false;
+          var viewport = window.innerHeight;
+          layers.forEach(function (layer) {
+            var rect = layer.getBoundingClientRect();
+            var progress = (rect.top + rect.height / 2 - viewport / 2) / viewport;
+            layer.style.transform = 'translate3d(0,' + (progress * -16).toFixed(2) + 'px,0)';
+          });
+        }
+        window.addEventListener(
+          'scroll',
+          function () {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+          },
+          { passive: true }
+        );
+        update();
       })();
     </script>
   </body>
