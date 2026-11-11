@@ -50,9 +50,11 @@ macOS 包没有代码签名，首次打开需要右键「打开」绕过 Gatekee
 
 ```
 .
-├─ apps/desktop/        # 客户端：React 19 + TypeScript + Vite + Tauri
-├─ apps/admin/          # 管理后台：React 19 + Vite（与客户端共用 design token）
-├─ apps/server/         # 市场服务端：axum + sqlx + PostgreSQL
+├─ apps/
+│  ├─ desktop/          # 客户端：React 19 + TypeScript + Vite + Tauri
+│  ├─ admin/            # 管理后台：React 19 + Vite（与客户端共用 design token）
+│  ├─ android/          # Android 客户端：Kotlin + Jetpack Compose
+│  └─ server/           # 市场服务端：axum + sqlx + PostgreSQL
 ├─ crates/
 │  ├─ ppl-package/      # 资源包解析与安全校验（客户端与服务端共用）
 │  └─ ppl-core/         # 实例、资源库、预设挂载
