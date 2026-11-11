@@ -1,5 +1,6 @@
 package org.pixelpine.launcher.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -13,7 +14,13 @@ import java.net.URL
 object Net {
     private const val UA = "Pixel-Pine-Launcher"
 
-    fun getJson(url: String, accept: String = "application/json"): JSONObject {
+    fun getJson(url: String, accept: String = "application/json"): JSONObject =
+        JSONObject(read(url, accept))
+
+    fun getJsonArray(url: String, accept: String = "application/json"): JSONArray =
+        JSONArray(read(url, accept))
+
+    private fun read(url: String, accept: String): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 12_000
         connection.readTimeout = 20_000
@@ -26,7 +33,7 @@ object Net {
             if (code !in 200..299) {
                 throw IllegalStateException("服务端返回 $code：${text.take(140)}")
             }
-            return JSONObject(text)
+            return text
         } finally {
             connection.disconnect()
         }

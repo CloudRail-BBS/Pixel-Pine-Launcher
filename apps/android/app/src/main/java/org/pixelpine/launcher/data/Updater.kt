@@ -31,40 +31,61 @@ data class ReleaseInfo(
 object Updater {
     private const val REPO = "CloudRail-BBS/Pixel-Pine-Launcher"
 
-    /** 最近一次发布。仓库没有发布时会抛错，界面按失败处理。 */
+    /**
+     * 最近一个带 Android 安装包的发布。
+     *
+     * 不能直接用 `/releases/latest`：那个接口**不返回预发布**，而仓库里的发布
+     * 全部标了 prerelease（预览版），请求会直接 404——这正是「更新检查失败」的
+     * 一个隐蔽来源。这里读列表，跳过草稿，取版本最高且带 APK 的那一个。
+     *
+     * 没有 APK 的版本（纯桌面端修复）会被跳过：不该让 Android 用户去升一个装不上的版本。
+     */
     suspend fun latest(): ReleaseInfo = withContext(Dispatchers.IO) {
-        val json = Net.getJson(
-            "https://api.github.com/repos/$REPO/releases/latest",
+        val list = Net.getJsonArray(
+            "https://api.github.com/repos/$REPO/releases?per_page=30",
             accept = "application/vnd.github+json",
         )
 
-        val version = json.optString("tag_name").removePrefix("v").trim()
-        check(version.isNotEmpty()) { "Release 里没有版本标签" }
+        var best: ReleaseInfo? = null
+        for (index in 0 until list.length()) {
+            val item = list.optJSONObject(index) ?: continue
+            if (item.optBoolean("draft", false)) continue
 
-        var apkUrl = ""
-        var apkName = ""
-        var apkSize = 0L
-        val assets = json.optJSONArray("assets")
-        if (assets != null) {
-            for (index in 0 until assets.length()) {
-                val asset = assets.optJSONObject(index) ?: continue
-                val name = asset.optString("name")
-                if (!name.endsWith(".apk", ignoreCase = true)) continue
-                apkUrl = asset.optString("browser_download_url")
-                apkName = name
-                apkSize = asset.optLong("size")
-                break
+            val version = item.optString("tag_name").removePrefix("v").trim()
+            if (version.isEmpty()) continue
+
+            var apkUrl = ""
+            var apkName = ""
+            var apkSize = 0L
+            item.optJSONArray("assets")?.let { assets ->
+                for (position in 0 until assets.length()) {
+                    val asset = assets.optJSONObject(position) ?: continue
+                    val name = asset.optString("name")
+                    if (!name.endsWith(".apk", ignoreCase = true)) continue
+                    apkUrl = asset.optString("browser_download_url")
+                    apkName = name
+                    apkSize = asset.optLong("size")
+                    break
+                }
+            }
+            if (apkUrl.isEmpty()) continue
+
+            val info = ReleaseInfo(
+                version = version,
+                notes = item.optString("body").trim(),
+                pageUrl = item.optString("html_url"),
+                apkUrl = apkUrl,
+                apkName = apkName,
+                apkSize = apkSize,
+            )
+
+            val current = best
+            if (current == null || isNewer(info.version, current.version)) {
+                best = info
             }
         }
 
-        ReleaseInfo(
-            version = version,
-            notes = json.optString("body").trim(),
-            pageUrl = json.optString("html_url"),
-            apkUrl = apkUrl,
-            apkName = apkName,
-            apkSize = apkSize,
-        )
+        best ?: error("还没有带 Android 安装包的发布")
     }
 
     /** 逐段比较数字，`0.1.10` 要大于 `0.1.9`——字符串比较会判错。 */
