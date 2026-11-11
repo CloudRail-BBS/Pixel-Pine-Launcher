@@ -1,0 +1,89 @@
+---
+/**
+ * 首页首屏：黑场 + 巨字 + 幽灵背景文字。
+ *
+ * 参考站的做法是「一个词占满屏幕」，所以这里不再放徽标、玻璃卡片这些零碎元素：
+ * 视线只落在产品名和一句说明上，按钮是唯一动作。
+ */
+
+interface Cta {
+  text: string;
+  href: string;
+  /** 是否外链 */
+  external?: boolean;
+  /** 读屏用的完整说明，不传则用 text */
+  label?: string;
+}
+
+interface Props {
+  /** 背景巨字，建议用产品名，纯装饰 */
+  ghost: string;
+  kicker?: string;
+  titleTop: string;
+  titleBottom: string;
+  subtitle: string;
+  primary: Cta;
+  secondary?: Cta;
+  links?: Cta[];
+}
+
+const { ghost, kicker, titleTop, titleBottom, subtitle, primary, secondary, links = [] } = Astro.props;
+---
+
+<section class="hero-stage">
+  <div class="hero-deco" aria-hidden="true"></div>
+  <div class="hero-ghost" aria-hidden="true">{ghost}</div>
+
+  <div class="hero-inner">
+    {kicker && <p class="hero-kicker">{kicker}</p>}
+
+    <h1 class="hero-title">
+      {titleTop}
+      <span class="hl">{titleBottom}</span>
+    </h1>
+
+    <p class="hero-sub">{subtitle}</p>
+
+    <div class="hero-cta">
+      <a
+        class="pill pill-solid"
+        href={primary.href}
+        aria-label={primary.label ?? primary.text}
+        {...(primary.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+      >
+        {primary.text}
+      </a>
+
+      {
+        secondary && (
+          <a
+            class="pill pill-outline"
+            href={secondary.href}
+            aria-label={secondary.label ?? secondary.text}
+            {...(secondary.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+          >
+            {secondary.text}
+          </a>
+        )
+      }
+    </div>
+
+    {
+      links.length > 0 && (
+        <div class="hero-links">
+          {links.map((link) => (
+            <a
+              href={link.href}
+              {...(link.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+            >
+              {link.text}
+              {link.external && <span aria-hidden="true">↗</span>}
+            </a>
+          ))}
+        </div>
+      )
+    }
+  </div>
+
+  <a class="scroll-hint" href="#screens">向下滑动探索</a>
+</section>

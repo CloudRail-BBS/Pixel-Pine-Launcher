@@ -2,7 +2,8 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
-import HeroSection from '../components/marketing/HeroSection.astro';
+import HeroStage from '../components/marketing/HeroStage.astro';
+import SectionHead from '../components/marketing/SectionHead.astro';
 import BentoGrid from '../components/marketing/BentoGrid.astro';
 import FaqAccordion from '../components/marketing/FaqAccordion.astro';
 import { SITE, PLATFORMS, url, absoluteUrl } from '../lib/site';
@@ -41,7 +42,7 @@ const websiteSchema = {
 ---
 
 <BaseLayout
-  title="铁锈战争作战终端"
+  title={SITE.name}
   description={SITE.description}
   image="/og.png"
   appendSiteName={false}
@@ -53,30 +54,39 @@ const websiteSchema = {
 
   <Header slot="header" />
 
-  <div class="relative overflow-hidden">
-    <div
-      class="pointer-events-none absolute inset-x-0 -top-56 h-[460px] bg-[radial-gradient(50%_50%_at_50%_50%,var(--color-primary-500)/0.16,transparent_70%)] blur-2xl"
-      aria-hidden="true"
-    >
-    </div>
-
-    <HeroSection
-    badge={`预览版 v${SITE.version} · Windows / Linux / macOS`}
-    titleStart="把战场"
-    titleHighlight="收进一个窗口"
-    description="《铁锈战争》的第三方启动器：游戏下载、实例、Mod 预设、地图、联机与资源市场，不必再满硬盘找文件。"
-    primaryCtaText="下载安装包"
-    primaryCtaHref={SITE.releases}
-    primaryCtaAriaLabel="前往 GitHub Releases 下载安装包"
-    secondaryCtaText="查看源码"
-    secondaryCtaHref={SITE.repo}
-    secondaryCtaAriaLabel="在 GitHub 查看源码仓库"
-    />
-  </div>
+  <HeroStage
+    ghost="PIXEL PINE"
+    kicker={`预览版 v${SITE.version} · Windows / Linux / macOS`}
+    titleTop="把战场"
+    titleBottom="收进一个窗口"
+    subtitle="游戏下载、实例、Mod 预设、地图、联机与资源市场，收进一个窗口。"
+    primary={{
+      text: '下载安装包',
+      href: SITE.releases,
+      external: true,
+      label: '前往 GitHub Releases 下载安装包',
+    }}
+    secondary={{
+      text: '查看源码',
+      href: SITE.repo,
+      external: true,
+      label: '在 GitHub 查看源码仓库',
+    }}
+    links={[
+      { text: '阅读文档', href: url('/docs') },
+      { text: '扩展规范', href: url('/docs/pplx') },
+    ]}
+  />
 
   <!-- ── 界面 ────────────────────────────────────────────── -->
-  <section id="screens" class="scroll-mt-20 px-6 pb-2">
+  <section id="screens" class="scroll-mt-24 px-6 py-16 md:py-24">
     <div class="mx-auto max-w-6xl">
+      <SectionHead
+        glyph="✦"
+        title="先看界面"
+        lead="左边是实例与预设，右边是当前的 Mod 列表。装完就在这儿，不用再翻文件夹。"
+      />
+
       <figure class="media glass overflow-hidden rounded-2xl">
         <img
           src={url('/screenshots/library.webp')}
@@ -125,25 +135,30 @@ const websiteSchema = {
   </section>
 
   <!-- ── 三步开始 ────────────────────────────────────────── -->
-  <section class="px-6 py-12 md:py-14">
-    <ol class="mx-auto grid max-w-5xl gap-4 sm:grid-cols-3">
-      {
-        [
-          { step: '01', title: '装好启动器', desc: '从 Release 下载对应平台的安装包，装到当前用户目录即可。' },
-          { step: '02', title: '指一下游戏', desc: '已装过就选目录，没有就下载一份——不碰 Steam 的安装。' },
-          { step: '03', title: '挑个预设开玩', desc: '切换预设只重建链接，Mod 文件一个字节都不动。' },
-        ].map((item) => (
-          <li class="glass rounded-2xl p-6">
-            <span class="font-mono text-xs text-[var(--color-primary-500)]">{item.step}</span>
-            <h3 class="mt-3 font-display text-base font-semibold">{item.title}</h3>
-            <p class="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{item.desc}</p>
-          </li>
-        ))
-      }
-    </ol>
+  <section class="px-6 py-14 md:py-20">
+    <div class="mx-auto max-w-5xl">
+      <SectionHead glyph="◈" title="三步开始" lead="不用读文档也能装上：下载、指一下游戏、挑个预设。" />
+
+      <ol class="grid gap-4 sm:grid-cols-3">
+        {
+          [
+            { step: '01', title: '装好启动器', desc: '从 Release 下载对应平台的安装包，装到当前用户目录即可。' },
+            { step: '02', title: '指一下游戏', desc: '已装过就选目录，没有就下载一份——不碰 Steam 的安装。' },
+            { step: '03', title: '挑个预设开玩', desc: '切换预设只重建链接，Mod 文件一个字节都不动。' },
+          ].map((item) => (
+            <li class="rounded-2xl border border-[var(--glass-border)] bg-white/[0.02] p-6">
+              <span class="font-mono text-xs text-[var(--color-primary-500)]">{item.step}</span>
+              <h3 class="mt-4 font-display text-base font-semibold">{item.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{item.desc}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
   </section>
 
   <BentoGrid
+    glyph="◆"
     title="不是「装游戏」，是管理组合"
     subtitle="铁锈战争只有一个 mods/units 目录，所有 Mod 混在一起。PPL 把每一套玩法做成一个预设。"
     items={[
@@ -195,19 +210,14 @@ const websiteSchema = {
   <!-- ── 下载 ────────────────────────────────────────────── -->
   <section
     id="download"
-    class="scroll-mt-20 border-y border-[var(--border)] bg-[var(--bg-secondary)]/20 py-20 md:py-28"
+    class="scroll-mt-24 py-20 md:py-28"
   >
     <div class="mx-auto max-w-6xl px-6">
-      <div class="mx-auto max-w-3xl text-center">
-        <h2
-          class="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl"
-        >
-          下载 Pixel-Pine-Launcher
-        </h2>
-        <p class="mt-4 text-lg leading-relaxed text-[var(--text-secondary)]">
-          预览版：功能可用，但请当作测试版看待。安装包由 CI 在打版本标签时构建，三平台共用同一份更新签名。
-        </p>
-      </div>
+      <SectionHead
+        glyph="◇"
+        title="下载 Pixel-Pine-Launcher"
+        lead="预览版：功能可用，但请当作测试版看待。安装包由 CI 在打版本标签时构建，三平台共用同一份更新签名。"
+      />
 
       <div class="mt-12 grid gap-5 md:grid-cols-3">
         {
@@ -238,10 +248,8 @@ const websiteSchema = {
                 target="_blank"
                 rel="noreferrer"
                 class:list={[
-                  'mt-5 inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-all active:scale-[0.98]',
-                  platform.recommended
-                    ? 'bg-[var(--color-primary-600)] text-white hover:-translate-y-0.5 hover:bg-[var(--color-primary-700)]'
-                    : 'border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--color-primary-500)] hover:bg-[var(--bg-secondary)]',
+                  'pill mt-5 w-full',
+                  platform.recommended ? 'pill-solid' : 'pill-outline',
                 ]}
               >
                 {platform.action}
@@ -270,6 +278,7 @@ const websiteSchema = {
   </section>
 
   <FaqAccordion
+    glyph="●"
     title="常见问题"
     description="关于授权、数据与平台的几个高频疑问。"
     faqs={[
@@ -307,12 +316,12 @@ const websiteSchema = {
   />
 
   <!-- ── 收尾 CTA ────────────────────────────────────────── -->
-  <section class="px-6 py-20 md:py-24">
-    <div class="glass mx-auto max-w-4xl rounded-3xl px-6 py-14 text-center">
-      <h2 class="font-display text-2xl font-bold tracking-tight sm:text-3xl">
-        换个玩法，不该是搬一次文件
+  <section class="px-6 py-20 md:py-28">
+    <div class="mx-auto max-w-3xl text-center">
+      <h2 class="text-[clamp(28px,4.4vw,46px)] font-bold leading-[1.15] tracking-tight">
+        换个玩法，<br class="sm:hidden" />不该是搬一次文件
       </h2>
-      <p class="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">
+      <p class="mx-auto mt-5 max-w-xl text-[15.5px] leading-relaxed text-[var(--text-secondary)]">
         下载后先指一下你已经装好的游戏，剩下的交给预设。
       </p>
       <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -320,7 +329,7 @@ const websiteSchema = {
           href={SITE.releases}
           target="_blank"
           rel="noreferrer"
-          class="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary-600)] px-7 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-700)] active:scale-[0.98]"
+          class="pill pill-solid"
         >
           下载安装包
         </a>
@@ -328,7 +337,7 @@ const websiteSchema = {
           href={SITE.repo}
           target="_blank"
           rel="noreferrer"
-          class="inline-flex items-center justify-center rounded-xl border border-[var(--border)] px-7 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--color-primary-500)]"
+          class="pill pill-outline"
         >
           先看源码
         </a>

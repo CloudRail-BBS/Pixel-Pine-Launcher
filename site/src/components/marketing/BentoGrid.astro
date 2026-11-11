@@ -17,15 +17,22 @@ interface BentoItem {
 interface Props {
   title: string;
   subtitle?: string;
+  /** 标题上方的符号，例如 ✦ ◈ ◆ */
+  glyph?: string;
   items: BentoItem[];
 }
 
-const { title, subtitle, items } = Astro.props;
+const { title, subtitle, glyph, items } = Astro.props;
 ---
 
-<section id="features" class="py-20 md:py-32">
+<section id="features" class="py-16 md:py-24">
   <div class="mx-auto max-w-7xl px-6">
     <div class="mx-auto max-w-2xl text-center">
+      {glyph && (
+        <span class="section-glyph" aria-hidden="true">
+          {glyph}
+        </span>
+      )}
       <h2 class="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl">
         {title}
       </h2>

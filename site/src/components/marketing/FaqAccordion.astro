@@ -9,12 +9,15 @@ interface FaqItem {
 interface Props {
   title?: string;
   description?: string;
+  /** 标题上方的符号，例如 ✦ ◈ ◆ */
+  glyph?: string;
   faqs: FaqItem[];
 }
 
 const {
   title = 'Frequently Asked Questions',
   description = 'Everything you need to know about the product and billing.',
+  glyph,
   faqs,
 } = Astro.props;
 
@@ -28,6 +31,11 @@ const faqSchemaData = {
   <JsonLd type="FAQPage" data={faqSchemaData} />
 
   <div class="text-center mb-12">
+    {glyph && (
+      <span class="section-glyph" aria-hidden="true">
+        {glyph}
+      </span>
+    )}
     <h2 class="font-display text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl">
       {title}
     </h2>
