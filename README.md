@@ -58,6 +58,7 @@ macOS 包没有代码签名，首次打开需要右键「打开」绕过 Gatekee
 │  └─ ppl-core/         # 实例、资源库、预设挂载
 ├─ docs/PLAN.md         # 技术方案 v1.3
 ├─ docs/RELEASE_NOTES.md # 当前版本的更新说明（发版时同步给 Release 与 latest.json）
+├─ site/                # 官网：Astro + Tailwind，构建后发布到 GitHub Pages
 ├─ scripts/             # make-latest-json.mjs：把四平台产物拼成更新清单
 └─ .github/workflows/   # CI
 ```

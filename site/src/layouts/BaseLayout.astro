@@ -1,0 +1,161 @@
+---
+import '../styles/global.css';
+import '@fontsource-variable/inter';
+
+import { SITE, BASE, absoluteUrl } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  /** 相对站点根的图片路径，例如 `/og.png` */
+  image?: string;
+  canonicalUrl?: string;
+  ogType?: 'website' | 'article';
+  noindex?: boolean;
+  /** 是否在标题后追加站点名 */
+  appendSiteName?: boolean;
+}
+
+const {
+  title,
+  description,
+  image = '/og.png',
+  canonicalUrl,
+  ogType = 'website',
+  noindex = false,
+  appendSiteName = true,
+} = Astro.props;
+
+const fullTitle = appendSiteName ? `${title} · ${SITE.name}` : title;
+
+// Astro 构建时给的是带 base 的路径；先去掉前缀再交给 absoluteUrl 拼一次，
+// 免得出现 /Pixel-Pine-Launcher/Pixel-Pine-Launcher/about 这种双前缀。
+const rawPath = Astro.url.pathname;
+const relPath = BASE && rawPath.startsWith(BASE) ? rawPath.slice(BASE.length) || '/' : rawPath;
+const canonical = canonicalUrl ?? absoluteUrl(relPath);
+const ogImage = absoluteUrl(image);
+---
+
+<!doctype html>
+<html lang="zh-CN" class="scroll-smooth overflow-x-hidden">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{fullTitle}</title>
+    <meta name="title" content={fullTitle} />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)" />
+
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content="zh_CN" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonical} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" type="image/png" href={absoluteUrl('/favicon.png')} />
+    <link rel="apple-touch-icon" href={absoluteUrl('/apple-touch-icon.png')} />
+
+    <!--
+      默认深色：产品本身就是深色界面，首屏闪一下白底再变黑很难看。
+      用户手动切到浅色后会写 localStorage，之后尊重他的选择。
+    -->
+    <script is:inline>
+      (function () {
+        var theme = localStorage.getItem('theme');
+        if (theme !== 'light') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <slot name="head" />
+  </head>
+  <body
+    class="min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text-primary)] antialiased transition-colors duration-200"
+  >
+    <div class="loadbar" data-loadbar data-state="loading" aria-hidden="true"></div>
+
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-white"
+    >
+      跳到正文
+    </a>
+
+    <slot name="header" />
+
+    <main id="main-content">
+      <slot />
+    </main>
+
+    <slot name="footer" />
+
+    <script is:inline>
+      // 顶部进度条：加载完成走满并淡出；站内跳转时先亮起来，
+      // 否则点了链接到新页面渲染之间完全没有反馈。
+      (function () {
+        var bar = document.querySelector('[data-loadbar]');
+        if (!bar) return;
+
+        var finished = false;
+        function finish() {
+          if (finished) return;
+          finished = true;
+          bar.setAttribute('data-state', 'done');
+          setTimeout(function () {
+            bar.style.opacity = '0';
+          }, 220);
+        }
+
+        window.addEventListener('load', finish);
+        // 兜底：某个资源挂住时不要把进度条永远卡在 82%
+        setTimeout(finish, 3000);
+
+        document.addEventListener('click', function (event) {
+          var link = event.target.closest('a[href]');
+          if (!link) return;
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+          if (link.target === '_blank' || link.hasAttribute('download')) return;
+
+          var target = new URL(link.href, location.href);
+          if (target.origin !== location.origin) return;
+          // 同页锚点不换页，不该显示进度条
+          if (target.pathname === location.pathname) return;
+
+          bar.style.opacity = '1';
+          bar.setAttribute('data-state', 'loading');
+        });
+      })();
+
+      // 图片淡入：加载完再显示，避免骨架后面突然「弹出」一张图
+      (function () {
+        document.querySelectorAll('img[data-fade]').forEach(function (img) {
+          function done() {
+            img.classList.add('is-loaded');
+            var media = img.closest('.media');
+            if (media) media.classList.add('is-loaded');
+          }
+          if (img.complete && img.naturalWidth > 0) done();
+          else img.addEventListener('load', done, { once: true });
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import { SITE, absoluteUrl } from '../lib/site';
+
+const updated = '2026-11-11';
+---
+
+<BaseLayout
+  title="使用条款"
+  description="使用 Pixel-Pine-Launcher 与资源市场时需要遵守的规则。"
+  canonicalUrl={absoluteUrl('/terms')}
+>
+  <Header slot="header" />
+
+  <article class="mx-auto max-w-3xl px-6 py-16 md:py-24">
+    <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">使用条款</h1>
+    <p class="mt-3 text-sm text-[var(--text-secondary)]">最后更新：{updated}</p>
+
+    <div class="mt-10 space-y-10 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">软件按「现状」提供</h2>
+        <p class="mt-3">
+          PPL 以 MIT 许可证开源发布，不附带任何明示或暗示的担保。切换预设、写入链接、
+          安装资源等操作都由你自行决定并承担风险；建议首次使用前备份游戏目录。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">游戏本体的权利</h2>
+        <p class="mt-3">
+          《铁锈战争》版权归 Corroding Games 所有。PPL 不包含、不分发游戏本体，
+          也不提供破解或未获授权的游戏文件。请通过官方渠道购买并安装游戏。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">你上传的内容</h2>
+        <ul class="mt-3 space-y-2">
+          <li>· 你必须拥有所上传内容的权利，或已获得权利人授权。</li>
+          <li>· 禁止上传破解、外挂、恶意代码、色情或违反当地法律的内容。</li>
+          <li>· 上传内容会经过人工审核；运营方可以拒绝或下架不合规内容。</li>
+          <li>· 你保留自己内容的版权，同时授权本站为分发目的存储与展示它。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">举报与下架</h2>
+        <p class="mt-3">
+          认为某条内容侵犯了你的权益，可以在客户端内举报，或在
+          <a
+            href={SITE.issues}
+            target="_blank"
+            rel="noreferrer"
+            class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+            >问题反馈</a
+          >里联系我们。核实后会下架并记录处理过程。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">条款变更</h2>
+        <p class="mt-3">
+          条款可能随功能调整而更新，改动会提交在仓库里，历史可查。
+          继续使用即视为接受更新后的条款。
+        </p>
+      </section>
+    </div>
+  </article>
+
+  <Footer slot="footer" />
+</BaseLayout>

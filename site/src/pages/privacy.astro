@@ -1,0 +1,79 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import { SITE, absoluteUrl } from '../lib/site';
+
+const updated = '2026-11-11';
+---
+
+<BaseLayout
+  title="隐私说明"
+  description="PPL 收集哪些数据、存在哪里、怎么删除。"
+  canonicalUrl={absoluteUrl('/privacy')}
+>
+  <Header slot="header" />
+
+  <article class="mx-auto max-w-3xl px-6 py-16 md:py-24">
+    <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">隐私说明</h1>
+    <p class="mt-3 text-sm text-[var(--text-secondary)]">最后更新：{updated}</p>
+
+    <div class="mt-10 space-y-10 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">只在你使用市场时需要账号</h2>
+        <p class="mt-3">
+          浏览与安装不需要登录。发布资源、举报或使用联机服务时需要一个邮箱账号——
+          我们只存邮箱、显示名、角色与登录时间，不存密码（登录走邮箱验证码）。
+          以后台管理密码登录的账号也只保存密码哈希。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">本地数据</h2>
+        <p class="mt-3">
+          实例路径、预设、Mod 索引与市场缓存都在你自己的机器上，位于 PPL 的数据目录。
+          卸载启动器不会删除这些内容；要彻底清除，手动删掉该目录即可。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">会写进服务端的内容</h2>
+        <ul class="mt-3 space-y-2">
+          <li>· 账号：邮箱、显示名、角色、创建与最后登录时间。</li>
+          <li>· 上传：资源包、封面、说明、校验和与版本信息。</li>
+          <li>· 审计：谁在什么时候通过了哪条资源、处理了哪条举报。</li>
+          <li>· 举报：你填写的原因与联系方式（可选）。</li>
+        </ul>
+        <p class="mt-3">
+          服务端不记录你的本地目录结构，也不上传你的存档与 Mod 文件内容——
+          上传只发生在你主动发布时。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">第三方</h2>
+        <p class="mt-3">
+          客户端会从 GitHub Releases 检查更新，市场页面可能请求你配置的第三方市场源。
+          这些请求会带上常规的网络信息（IP、User-Agent），遵循对应服务自己的隐私政策。
+        </p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-xl font-semibold text-[var(--text-primary)]">删除你的数据</h2>
+        <p class="mt-3">
+          在仓库提一个 Issue，或在
+          <a
+            href={SITE.issues}
+            target="_blank"
+            rel="noreferrer"
+            class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+            >问题反馈</a
+          >里说明要删除的邮箱，我们会连同其上传记录一并清理。审计日志中与审核相关的记录
+          会保留，但会移除可识别到个人的信息。
+        </p>
+      </section>
+    </div>
+  </article>
+
+  <Footer slot="footer" />
+</BaseLayout>

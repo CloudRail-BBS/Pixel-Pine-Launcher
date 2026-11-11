@@ -1,0 +1,93 @@
+---
+/**
+ * 站点页脚：品牌、三栏链接、版权与非官方声明。
+ */
+import { SITE, url } from '../../lib/site';
+
+const year = new Date().getFullYear();
+
+const columns = [
+  {
+    title: '产品',
+    links: [
+      { label: '功能', href: url('/#features') },
+      { label: '界面', href: url('/#screens') },
+      { label: '下载', href: url('/#download') },
+      { label: '常见问题', href: url('/#faq') },
+    ],
+  },
+  {
+    title: '项目',
+    links: [
+      { label: '源码仓库', href: SITE.repo, external: true },
+      { label: '全部版本', href: SITE.releases, external: true },
+      { label: '问题反馈', href: SITE.issues, external: true },
+      { label: 'MIT 许可证', href: SITE.license, external: true },
+    ],
+  },
+  {
+    title: '关于',
+    links: [
+      { label: '关于 PPL', href: url('/about') },
+      { label: '隐私说明', href: url('/privacy') },
+      { label: '使用条款', href: url('/terms') },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-[var(--border)] bg-[var(--bg)]">
+  <div class="mx-auto max-w-7xl px-6 py-12 md:py-16">
+    <div class="grid grid-cols-2 gap-8 md:grid-cols-4">
+      <div class="col-span-2 md:col-span-1">
+        <a href={url('/')} class="flex items-center gap-2.5 font-display text-lg font-bold">
+          <img src={url('/logo.png')} alt="" width="28" height="28" class="rounded-lg" />
+          <span class="text-[15px] font-semibold tracking-tight">
+            Pixel-Pine{' '}
+            <span class="text-[var(--color-primary-500)] dark:text-[var(--color-primary-400)]"
+              >Launcher</span
+            >
+          </span>
+        </a>
+        <p class="mt-3 max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
+          《铁锈战争》的第三方启动器。实例、Mod 预设、地图、联机与资源市场，收进一个窗口。
+        </p>
+        <p class="mt-3 text-xs leading-relaxed text-[var(--text-secondary)] opacity-70">
+          非官方工具，与 Corroding Games 无隶属关系。
+        </p>
+      </div>
+
+      {
+        columns.map((column) => (
+          <div>
+            <h3 class="text-sm font-semibold text-[var(--text-primary)]">{column.title}</h3>
+            <ul class="mt-4 space-y-2.5">
+              {column.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    {...('external' in link && link.external
+                      ? { target: '_blank', rel: 'noreferrer' }
+                      : {})}
+                    class="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+
+    <div
+      class="mt-12 flex flex-col gap-3 border-t border-[var(--border)] pt-6 text-xs text-[var(--text-secondary)] sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p>© {year} CloudRail BBS · Pixel-Pine-Launcher</p>
+      <p class="opacity-80">
+        《铁锈战争》版权归 Corroding Games 所有；本站不提供游戏本体。
+      </p>
+    </div>
+  </div>
+</footer>

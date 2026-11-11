@@ -1,0 +1,74 @@
+---
+/**
+ * 主题切换。
+ *
+ * 模板原本用 React 岛实现，为了一个开关要加载 ~220KB 的 React 运行时。
+ * 这里改成纯 CSS + 8 行内联脚本：两个图标都在 DOM 里，用 `.dark` 控制显隐，
+ * 靠 transition 做交叉淡入——没有框架，也没有首次渲染的闪动。
+ */
+---
+
+<button
+  type="button"
+  data-theme-toggle
+  aria-label="切换深色 / 浅色"
+  aria-pressed="false"
+  class="relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+>
+  <!-- 太阳：深色下显示（点了变浅色） -->
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    class="absolute h-5 w-5 rotate-90 scale-50 opacity-0 transition-[transform,opacity] duration-200 dark:rotate-0 dark:scale-100 dark:opacity-100"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+    ></path>
+  </svg>
+
+  <!-- 月亮：浅色下显示（点了变深色） -->
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    class="absolute h-5 w-5 rotate-0 scale-100 opacity-100 transition-[transform,opacity] duration-200 dark:-rotate-90 dark:scale-50 dark:opacity-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+    ></path>
+  </svg>
+</button>
+
+<script is:inline>
+  (function () {
+    var button = document.currentScript.previousElementSibling;
+    if (!button) return;
+
+    var root = document.documentElement;
+    var sync = function () {
+      var dark = root.classList.contains('dark');
+      button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      button.setAttribute('aria-label', dark ? '切换到浅色主题' : '切换到深色主题');
+    };
+
+    button.addEventListener('click', function () {
+      var dark = root.classList.toggle('dark');
+      // 手动切过之后就不要再看系统偏好了，否则刷新会跳回去
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+      sync();
+    });
+
+    sync();
+  })();
+</script>

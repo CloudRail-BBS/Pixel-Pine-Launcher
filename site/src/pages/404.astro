@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import { url } from '../lib/site';
+---
+
+<BaseLayout title="页面不存在" description="这个地址没有对应的页面。" noindex={true}>
+  <Header slot="header" />
+
+  <section class="mx-auto flex max-w-2xl flex-col items-center px-6 py-28 text-center md:py-40">
+    <p class="font-mono text-sm text-[var(--color-primary-500)]">404</p>
+    <h1 class="mt-4 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+      这个地址没有页面
+    </h1>
+    <p class="mt-4 text-[var(--text-secondary)]">
+      可能是链接写错了，或者页面已经随版本调整被合并。
+    </p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a
+        href={url('/')}
+        class="rounded-xl bg-[var(--color-primary-600)] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-primary-700)]"
+      >
+        回到首页
+      </a>
+      <a
+        href={url('/#download')}
+        class="rounded-xl border border-[var(--border)] px-6 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--color-primary-500)]"
+      >
+        直接下载
+      </a>
+    </div>
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>

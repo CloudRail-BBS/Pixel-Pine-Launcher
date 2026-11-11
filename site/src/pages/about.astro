@@ -1,0 +1,81 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import { SITE, absoluteUrl, url } from '../lib/site';
+---
+
+<BaseLayout
+  title="关于"
+  description="Pixel-Pine-Launcher 是什么、不是什么，以及它如何处理你的数据。"
+  canonicalUrl={absoluteUrl('/about')}
+>
+  <Header slot="header" />
+
+  <article class="mx-auto max-w-3xl px-6 py-16 md:py-24">
+    <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">关于 PPL</h1>
+    <p class="mt-5 text-lg leading-relaxed text-[var(--text-secondary)]">
+      Pixel-Pine-Launcher（PPL）是《铁锈战争》的第三方启动器，解决的是「一套玩法要手动搬一次
+      Mod」这件小事——以及由此衍生出来的冲突、版本错乱与找不到文件。
+    </p>
+
+    <h2 class="mt-12 font-display text-xl font-semibold">它做什么</h2>
+    <ul class="mt-4 space-y-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      <li>· 把每一套 Mod 组合做成一个「作战预设」，切换只重建一次链接。</li>
+      <li>· 扫描并提示 Mod 之间的同名单位冲突，指出冲突双方。</li>
+      <li>· 内置资源市场：搜索、安装、版本历史与举报在同一处。</li>
+      <li>· 管理地图库、联机房间与扩展加载顺序。</li>
+    </ul>
+
+    <h2 class="mt-12 font-display text-xl font-semibold">它不做什么</h2>
+    <ul class="mt-4 space-y-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      <li>· 不包含、也不分发游戏本体；请自备正版。</li>
+      <li>· 不与 Corroding Games 有任何隶属或合作关系，不代表其立场。</li>
+      <li>· 不会修改游戏目录里 mods/units 以外的文件；卸载不删除你的 Mod 与存档。</li>
+    </ul>
+
+    <h2 class="mt-12 font-display text-xl font-semibold">数据放在哪</h2>
+    <p class="mt-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      实例、预设与市场缓存都在你自己的机器上（PPL 的存储目录）。只有市场相关的账号、
+      上传内容与审计记录会经过服务端，具体见 <a
+        href={url('/privacy')}
+        class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+        >隐私说明</a
+      >。
+    </p>
+
+    <h2 class="mt-12 font-display text-xl font-semibold">技术栈</h2>
+    <p class="mt-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      Rust 内核（ppl-core）+ Tauri 2 桌面壳 + React 19 界面，服务端为 Axum + PostgreSQL。
+      源码以 MIT 许可证发布在
+      <a
+        href={SITE.repo}
+        target="_blank"
+        rel="noreferrer"
+        class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+        >GitHub</a
+      >，问题与建议走
+      <a
+        href={SITE.issues}
+        target="_blank"
+        rel="noreferrer"
+        class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+        >Issues</a
+      >。
+    </p>
+
+    <h2 class="mt-12 font-display text-xl font-semibold">官网本身</h2>
+    <p class="mt-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+      这个站点基于
+      <a
+        href="https://github.com/druedaro/astro-seo-theme"
+        target="_blank"
+        rel="noreferrer"
+        class="text-[var(--color-primary-500)] underline decoration-[var(--border)] underline-offset-4"
+        >astro-seo-theme</a
+      >（MIT）改造，用 Astro + Tailwind CSS 构建，托管在 GitHub Pages。
+    </p>
+  </article>
+
+  <Footer slot="footer" />
+</BaseLayout>

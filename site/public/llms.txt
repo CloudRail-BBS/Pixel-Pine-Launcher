@@ -1,0 +1,37 @@
+# Pixel-Pine-Launcher (PPL)
+
+> 《铁锈战争》（Rusted Warfare）的第三方开源启动器：实例、Mod 预设、地图、联机与资源市场。
+
+## 这个项目是什么
+
+PPL 管理的是「组合」而不是「安装」：游戏只认一个 mods/units 目录，
+PPL 把每一套 Mod 组合做成一个「作战预设」，切换时只重建一次目录链接，
+零拷贝、毫秒级，不污染游戏目录、不动玩家已有数据。
+
+## 关键事实
+
+- 平台：Windows x64、Linux x64、macOS（Apple 芯片 / Intel）
+- 技术栈：Rust 内核（ppl-core）+ Tauri 2 + React 19；服务端 Axum + PostgreSQL
+- 许可证：MIT
+- 状态：预览版（0.1.x），安装包由 CI 在打版本标签时构建
+- PPL 不包含、也不分发游戏本体；需要自备正版
+
+## 主要功能
+
+- 作战预设：切换只重建 mods/units 链接，Mod 文件不移动
+- 冲突检测：同名单位互相覆盖时，扫描阶段列出冲突双方
+- 资源市场：搜索、详情、版本历史、举报；上传需邮箱验证与人工审核
+- 地图库与联机：按尺寸/人数筛选地图，读取房间快照
+- 扩展加载器：ppl-extension.json 描述依赖，按拓扑排序加载
+
+## 链接
+
+- 源码：https://github.com/CloudRail-BBS/Pixel-Pine-Launcher
+- 下载：https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/releases
+- 问题反馈：https://github.com/CloudRail-BBS/Pixel-Pine-Launcher/issues
+- 市场服务端：https://ziyuan.pixelpine.org
+
+## 版权
+
+《铁锈战争》版权归 Corroding Games 所有。PPL 是第三方项目，
+与 Corroding Games 无隶属或合作关系，不代表其立场。
